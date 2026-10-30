@@ -349,7 +349,7 @@ function drawPanel(
     canvasH
   );
 
-  const pad = panelW * 0.70;
+  const pad = panelW * 0.105;
   const contentX = x + pad;
   const maxTextW = panelW - pad * 2;
 
