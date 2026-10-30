@@ -1,29 +1,24 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101411">
-
+  <meta name="description" content="camou — Gleiche Fragen. Neue Perspektiven.">
   <title>camou — independent artist</title>
-
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-
   <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
-      }
-    }
+    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}
   </script>
+  <script type="module" src="script.js"></script>
 </head>
-
 <body>
   <main class="experience">
-
     <header class="topbar">
       <a class="logo" href="#" id="logo">camou<span>.</span></a>
-
       <nav class="navigation" aria-label="Hauptnavigation">
         <button class="nav-link active" data-section="0">Home</button>
         <button class="nav-link" data-section="1">Music</button>
@@ -31,45 +26,32 @@
         <button class="nav-link" data-section="3">Archive</button>
         <button class="nav-link" data-section="4">Contact</button>
       </nav>
-
       <div class="top-note">INDEPENDENT ARTIST / SWITZERLAND</div>
     </header>
 
-    <section class="globe-stage" aria-label="Interaktive Camou-Kugel">
-
+    <section class="globe-stage" aria-label="Drehbare Camou-Kugel">
       <div id="globe"></div>
-
-      <div class="zoom-controls" aria-label="Zoom-Steuerung">
+      <div class="zoom-controls" aria-label="Zoom">
         <button id="zoom-in" aria-label="Vergrößern">+</button>
         <button id="zoom-out" aria-label="Verkleinern">−</button>
         <button id="zoom-reset" aria-label="Zoom zurücksetzen">↺</button>
       </div>
-
-      <div class="interaction-hint" id="hint">
-        <span class="hint-dot"></span>
-        DRAG TO EXPLORE
-      </div>
-
+      <div class="interaction-hint" id="hint"><span class="hint-dot"></span> DRAG TO EXPLORE</div>
       <div class="section-indicator">
         <span id="current-section">HOME</span>
         <span class="indicator-line"></span>
         <span id="section-number">01 / 05</span>
       </div>
-
     </section>
 
     <footer class="footer">
       <span>camou — independent artist / Switzerland</span>
-
       <div class="footer-links">
-        <a id="instagram-link" href="#" target="_blank" rel="noopener">Instagram</a>
-        <a id="spotify-link" href="#" target="_blank" rel="noopener">Spotify</a>
+        <a href="#" id="instagram-link">Instagram</a>
+        <a href="#" id="spotify-link">Spotify</a>
         <a href="mailto:camou.kontakt@gmail.com">Contact ↗</a>
       </div>
     </footer>
-
   </main>
-
-  <script type="module" src="script.js"></script>
 </body>
 </html>
