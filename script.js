@@ -465,7 +465,7 @@ function drawPanel(
   const imageH = canvasH * 0.19;
 
   const imageX = centerX - imageW / 2;
-  const imageY = canvasH * 0.51;
+  const imageY = canvasH * 0.53;
 
   ctx.save();
 
