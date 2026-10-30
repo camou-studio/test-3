@@ -1,22 +1,41 @@
-
 import * as THREE from "three";
+import { CSS3DRenderer, CSS3DObject } from "three/addons/renderers/CSS3DRenderer.js";
+
+/* =========================================
+   CAMOU — 3D CONTENT GLOBE
+========================================= */
 
 const CONFIG = {
-  radius: 3.2,
-  desktopZoom: 8.7,
-  mobileZoom: 8.4,
-  minZoom: 6,
-  maxZoom: 15,
-  dragSpeed: 0.0052,
+  radius: 550,
+  cameraDistance: 1500,
+  minZoom: 1050,
+  maxZoom: 2300,
+  dragSpeed: 0.005,
   friction: 0.94
 };
 
 const ASSETS = {
-  home: new URL("./assets/hero.jpg", import.meta.url).href,
-  music: new URL("./assets/release.jpg", import.meta.url).href,
-  visuals: new URL("./assets/visuals.jpg", import.meta.url).href,
-  archive: new URL("./assets/archive.jpg", import.meta.url).href,
-  contact: new URL("./assets/contact.jpg", import.meta.url).href
+  home: "./assets/hero.jpg",
+  music: "./assets/release.jpg",
+  visuals: "./assets/visuals.jpg",
+  archive: "./assets/archive.jpg",
+  contact: "./assets/contact.jpg"
+};
+
+/*
+  Später hier deine echten Videodateien eintragen.
+  Die Vorschaubilder werden angezeigt, bevor das Video startet.
+*/
+
+const VIDEOS = {
+  music: {
+    poster: "./assets/video-music-poster.jpg",
+    source: "./assets/video-music.mp4"
+  },
+  visuals: {
+    poster: "./assets/video-visuals-poster.jpg",
+    source: "./assets/video-visuals.mp4"
+  }
 };
 
 const LINKS = {
@@ -24,336 +43,361 @@ const LINKS = {
   spotify: ""
 };
 
-const sections = [
-  {
-    name: "HOME",
-    eyebrow: "NEW PROJECT / 001",
-    title: ["c a m o u"],
-    body: ["Gleiche Fragen.", "Neue Perspektiven."],
-    image: ASSETS.home
-  },
-  {
-    name: "MUSIC",
-    eyebrow: "LATEST RELEASE",
-    title: ["f r a g m e n t e"],
-    body: [
-      "Ein Song zwischen Licht und Schatten.",
-      "Zwischen dem, was man sieht –",
-      "und dem, was bleibt."
-    ],
-    image: ASSETS.music,
-    extra: [
-      "JETZT HÖREN  →",
-      "SPOTIFY   /   APPLE MUSIC   /   YOUTUBE"
-    ]
-  },
-  {
-    name: "VISUALS",
-    eyebrow: "02 — VISUAL WORK",
-    title: ["Visuals"],
-    body: [
-      "Bilder, die bleiben.",
-      "Momente, die verschwinden."
-    ],
-    image: ASSETS.visuals
-  },
-  {
-    name: "ARCHIVE",
-    eyebrow: "03 — SELECTED WORKS",
-    title: ["Archive"],
-    body: [
-      "Alles hinterlässt Spuren.",
-      "Ein wachsendes Archiv aus Musik",
-      "und visuellen Arbeiten."
-    ],
-    image: ASSETS.archive,
-    extra: [
-      "fragmente",
-      "Zwischenräume",
-      "ohne titel",
-      "notizen"
-    ]
-  },
-  {
-    name: "CONTACT",
-    eyebrow: "04 — GET IN TOUCH",
-    title: ["Contact"],
-    body: [
-      "Für Anfragen und Zusammenarbeit.",
-      "Oder einfach für ein Gespräch."
-    ],
-    image: ASSETS.contact,
-    extra: ["camou.kontakt@gmail.com"]
-  }
+const SECTION_NAMES = [
+  "HOME",
+  "MUSIC",
+  "VISUALS",
+  "ARCHIVE",
+  "CONTACT"
 ];
+
+const SECTION_COUNT = SECTION_NAMES.length;
+const SECTION_STEP = (Math.PI * 2) / SECTION_COUNT;
+
+/* =========================================
+   HTML-FENSTER
+========================================= */
+
+function createPanel(index, content) {
+  const element = document.createElement("article");
+
+  element.className = "globe-panel";
+  element.dataset.section = String(index);
+
+  element.innerHTML = content;
+
+  return element;
+}
+
+function createImageWindow(image, alt) {
+  return `
+    <div class="media-window">
+      <img src="${image}" alt="${alt}" loading="lazy">
+    </div>
+  `;
+}
+
+function createVideoWindow(video, alt) {
+  return `
+    <div class="video-window">
+
+      <video
+        poster="${video.poster}"
+        preload="none"
+        playsinline
+        controls
+        aria-label="${alt}"
+      >
+        <source src="${video.source}" type="video/mp4">
+        Dein Browser unterstützt dieses Video nicht.
+      </video>
+
+      <button
+        class="video-play"
+        type="button"
+        aria-label="Video abspielen"
+      >
+        ▶
+      </button>
+
+    </div>
+  `;
+}
+
+function createHeading(label, number) {
+  return `
+    <div class="panel-heading">
+      <span class="panel-eyebrow">${label}</span>
+      <span class="panel-number">${number} / 05</span>
+    </div>
+  `;
+}
+
+/* =========================================
+   INHALTE DER FÜNF BEREICHE
+========================================= */
+
+const panelContents = [
+
+  /* HOME */
+
+  `
+    ${createHeading("NEW PROJECT / 001", "01")}
+
+    <div class="panel-content">
+
+      <div class="panel-copy">
+        <h1>c a m o u</h1>
+
+        <p>Gleiche Fragen.</p>
+        <p>Neue Perspektiven.</p>
+
+        <div class="small-note">
+          INDEPENDENT ARTIST / SWITZERLAND
+        </div>
+      </div>
+
+      ${createImageWindow(ASSETS.home, "Camou Home")}
+    </div>
+  `,
+
+  /* MUSIC */
+
+  `
+    ${createHeading("LATEST RELEASE", "02")}
+
+    <div class="panel-content">
+
+      <div class="panel-copy">
+        <h2>f r a g m e n t e</h2>
+
+        <p>Ein Song zwischen Licht und Schatten.</p>
+        <p>Zwischen dem, was man sieht – und dem, was bleibt.</p>
+
+        <div class="small-note">
+          SPOTIFY / APPLE MUSIC / YOUTUBE
+        </div>
+      </div>
+
+      <div class="window-scroll">
+
+        ${createImageWindow(ASSETS.music, "Aktuelle Veröffentlichung")}
+
+        <h3>Latest release</h3>
+
+        <p>
+          Musik zwischen Atmosphäre, Melodie und Fragmenten.
+        </p>
+
+        <p>
+          Hier können später Veröffentlichungen,
+          Streaming-Links und weitere Informationen stehen.
+        </p>
+
+        ${createVideoWindow(VIDEOS.music, "Musikvideo")}
+
+      </div>
+    </div>
+  `,
+
+  /* VISUALS */
+
+  `
+    ${createHeading("VISUAL WORK", "03")}
+
+    <div class="panel-content">
+
+      <div class="panel-copy">
+        <h2>Visuals</h2>
+
+        <p>Bilder, die bleiben.</p>
+        <p>Momente, die verschwinden.</p>
+
+        <div class="small-note">
+          IMAGE / MOTION / EXPERIMENT
+        </div>
+      </div>
+
+      <div class="window-scroll">
+
+        ${createImageWindow(ASSETS.visuals, "Camou Visuals")}
+
+        <h3>Visual work</h3>
+
+        <p>
+          Eine Sammlung visueller Arbeiten,
+          Fotografien und bewegter Bilder.
+        </p>
+
+        <p>
+          Die einzelnen Arbeiten können hier
+          später ergänzt und beschrieben werden.
+        </p>
+
+        ${createVideoWindow(VIDEOS.visuals, "Visual Video")}
+
+      </div>
+    </div>
+  `,
+
+  /* ARCHIVE */
+
+  `
+    ${createHeading("SELECTED WORKS", "04")}
+
+    <div class="panel-content">
+
+      <div class="panel-copy">
+        <h2>Archive</h2>
+
+        <p>Alles hinterlässt Spuren.</p>
+
+        <p>
+          Ein wachsendes Archiv aus Musik
+          und visuellen Arbeiten.
+        </p>
+
+        <div class="small-note">
+          SELECTED FRAGMENTS
+        </div>
+      </div>
+
+      <div class="window-scroll">
+
+        ${createImageWindow(ASSETS.archive, "Camou Archiv")}
+
+        <div class="archive-list">
+
+          <div class="archive-item">01 — fragmente</div>
+          <div class="archive-item">02 — Zwischenräume</div>
+          <div class="archive-item">03 — ohne titel</div>
+          <div class="archive-item">04 — notizen</div>
+          <div class="archive-item">05 — studies</div>
+          <div class="archive-item">06 — experiments</div>
+          <div class="archive-item">07 — visuals</div>
+          <div class="archive-item">08 — sounds</div>
+
+        </div>
+
+      </div>
+    </div>
+  `,
+
+  /* CONTACT */
+
+  `
+    ${createHeading("GET IN TOUCH", "05")}
+
+    <div class="panel-content">
+
+      <div class="panel-copy">
+        <h2>Contact</h2>
+
+        <p>Für Anfragen und Zusammenarbeit.</p>
+        <p>Oder einfach für ein Gespräch.</p>
+
+        <div class="small-note">
+          camou.kontakt@gmail.com
+        </div>
+      </div>
+
+      ${createImageWindow(ASSETS.contact, "Camou Contact")}
+    </div>
+  `
+];
+
+/* =========================================
+   THREE.JS / CSS3D SZENE
+========================================= */
 
 const container = document.getElementById("globe");
 const stage = document.querySelector(".globe-stage");
-const sectionLabel = document.getElementById("current-section");
-const sectionNumber = document.getElementById("section-number");
-const hint = document.getElementById("hint");
-const navButtons = [...document.querySelectorAll(".nav-link")];
-
-const isMobile = matchMedia("(max-width:700px)").matches;
-const defaultZoom = isMobile
-  ? CONFIG.mobileZoom
-  : CONFIG.desktopZoom;
 
 const scene = new THREE.Scene();
 
 const camera = new THREE.PerspectiveCamera(
   38,
   container.clientWidth / container.clientHeight,
-  0.1,
-  100
+  1,
+  5000
 );
 
-let currentZoom = defaultZoom;
+let currentZoom = CONFIG.cameraDistance;
 camera.position.set(0, 0, currentZoom);
 
-const renderer = new THREE.WebGLRenderer({
-  antialias: true,
-  alpha: false
-});
+const renderer = new CSS3DRenderer();
 
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(container.clientWidth, container.clientHeight);
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1;
+renderer.setSize(
+  container.clientWidth,
+  container.clientHeight
+);
+
+renderer.domElement.style.position = "absolute";
+renderer.domElement.style.inset = "0";
 
 container.appendChild(renderer.domElement);
 
-scene.add(new THREE.AmbientLight(0xddebd8, 1.15));
-
-const keyLight = new THREE.DirectionalLight(0xe3f0dc, 2.1);
-keyLight.position.set(-3, 4, 5);
-scene.add(keyLight);
-
-const rimLight = new THREE.PointLight(0x9bb99a, 24, 15);
-rimLight.position.set(4, -1, -3);
-scene.add(rimLight);
+/* =========================================
+   KUGEL-ANORDNUNG
+========================================= */
 
 const globeGroup = new THREE.Group();
 scene.add(globeGroup);
 
-function loadImage(src) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(
-      new Error(`Bild konnte nicht geladen werden: ${src}`)
-    );
-    image.src = src;
-  });
-}
+const panels = [];
 
-function drawCoverCrop(ctx, image, x, y, w, h) {
-  const scale = Math.max(
-    w / image.width,
-    h / image.height
-  );
+panelContents.forEach((content, index) => {
 
-  const sw = w / scale;
-  const sh = h / scale;
-  const sx = (image.width - sw) / 2;
-  const sy = (image.height - sh) / 2;
+  const element = createPanel(index, content);
+  const panel = new CSS3DObject(element);
 
-  ctx.drawImage(
-    image,
-    sx, sy, sw, sh,
-    x, y, w, h
-  );
-}
+  const sectionGroup = new THREE.Group();
 
-function drawPanel(ctx, section, image, centerX, panelW, canvasH) {
-  const x = centerX - panelW / 2;
+  sectionGroup.rotation.y = index * SECTION_STEP;
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(x, 0, panelW, canvasH);
-  ctx.clip();
+  panel.position.set(0, 0, CONFIG.radius);
 
-  drawCoverCrop(ctx, image, x, 0, panelW, canvasH);
+  sectionGroup.add(panel);
+  globeGroup.add(sectionGroup);
 
-  const shade = ctx.createLinearGradient(0, 0, 0, canvasH);
-  shade.addColorStop(0, "rgba(5,10,7,.45)");
-  shade.addColorStop(.38, "rgba(5,10,7,.56)");
-  shade.addColorStop(1, "rgba(5,10,7,.83)");
-
-  ctx.fillStyle = shade;
-  ctx.fillRect(x, 0, panelW, canvasH);
-
-  const glow = ctx.createRadialGradient(
-    centerX, canvasH * .48, 30,
-    centerX, canvasH * .48, panelW * .8
-  );
-
-  glow.addColorStop(0, "rgba(183,201,170,.16)");
-  glow.addColorStop(1, "rgba(8,13,9,0)");
-
-  ctx.fillStyle = glow;
-  ctx.fillRect(x, 0, panelW, canvasH);
-
-  const pad = panelW * .105;
-  const contentX = x + pad;
-  const maxTextW = panelW - pad * 2;
-
-  ctx.textAlign = "left";
-  ctx.fillStyle = "rgba(232,239,226,.78)";
-  ctx.font = "500 23px 'DM Mono', monospace";
-
-  ctx.fillText(section.eyebrow, contentX, canvasH * .345, maxTextW);
-
-  ctx.fillStyle = "#f0f2eb";
-  ctx.font = section.name === "MUSIC"
-    ? "300 55px Manrope, Arial"
-    : "300 72px Manrope, Arial";
-
-  const titleY = canvasH * .445;
-
-  section.title.forEach((line, i) => {
-    ctx.fillText(line, contentX, titleY + i * 86, maxTextW);
+  panels.push({
+    element,
+    panel,
+    group: sectionGroup
   });
 
-  const bodyStart = titleY + section.title.length * 86 + 38;
-
-  ctx.fillStyle = "rgba(235,239,230,.86)";
-  ctx.font = "300 27px Manrope, Arial";
-
-  section.body.forEach((line, i) => {
-    ctx.fillText(line, contentX, bodyStart + i * 43, maxTextW);
-  });
-
-  if (section.extra) {
-    const extraStart = bodyStart + section.body.length * 43 + 48;
-
-    ctx.fillStyle = "#c1d0b7";
-    ctx.font = "500 18px 'DM Mono', monospace";
-
-    section.extra.forEach((line, i) => {
-      ctx.fillText(line, contentX, extraStart + i * 39, maxTextW);
-    });
-  }
-
-  ctx.strokeStyle = "rgba(226,235,220,.35)";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(contentX, canvasH * .78);
-  ctx.lineTo(contentX + maxTextW, canvasH * .78);
-  ctx.stroke();
-
-  ctx.fillStyle = "rgba(232,239,226,.62)";
-  ctx.font = "19px 'DM Mono', monospace";
-
-  ctx.fillText(
-    `${String(sections.indexOf(section) + 1).padStart(2, "0")} / 05`,
-    contentX,
-    canvasH * .82
-  );
-
-  ctx.restore();
-}
-
-async function createGlobeTexture() {
-  const images = await Promise.all(
-    sections.map(section => loadImage(section.image))
-  );
-
-  const canvas = document.createElement("canvas");
-  canvas.width = 4096;
-  canvas.height = 2048;
-
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#172019";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const panelW = canvas.width / sections.length;
-
-  sections.forEach((section, index) => {
-    // Korrektur: Home liegt auf der Vorderseite der Kugel.
-    const center = (
-      canvas.width * (0.25 + index / sections.length)
-    ) % canvas.width;
-
-    const x = center - panelW / 2;
-
-    drawPanel(
-      ctx,
-      section,
-      images[index],
-      center,
-      panelW,
-      canvas.height
-    );
-
-    if (x < 0) {
-      drawPanel(
-        ctx,
-        section,
-        images[index],
-        center + canvas.width,
-        panelW,
-        canvas.height
-      );
-    }
-
-    if (x + panelW > canvas.width) {
-      drawPanel(
-        ctx,
-        section,
-        images[index],
-        center - canvas.width,
-        panelW,
-        canvas.height
-      );
-    }
-  });
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-  texture.needsUpdate = true;
-
-  return texture;
-}
-
-const globeGeometry = new THREE.SphereGeometry(
-  CONFIG.radius, 160, 112
-);
-
-const globeMaterial = new THREE.MeshStandardMaterial({
-  color: 0xffffff,
-  roughness: 0.88,
-  metalness: 0.02
 });
 
-const globe = new THREE.Mesh(globeGeometry, globeMaterial);
-globeGroup.add(globe);
+/*
+  Die fünf Fenster liegen rund um die Kugel.
+  Sie zeigen nach außen und werden durch die Drehung
+  der gemeinsamen Gruppe bewegt.
+*/
 
-const atmosphere = new THREE.Mesh(
-  new THREE.SphereGeometry(CONFIG.radius * 1.012, 96, 64),
-  new THREE.MeshBasicMaterial({
-    color: 0xa9bd9f,
-    transparent: true,
-    opacity: 0.055,
-    side: THREE.BackSide
-  })
-);
+/* =========================================
+   VIDEO-FUNKTION
+========================================= */
 
-globeGroup.add(atmosphere);
+document.querySelectorAll(".video-window").forEach(windowElement => {
 
-createGlobeTexture()
-  .then(texture => {
-    globeMaterial.map = texture;
-    globeMaterial.needsUpdate = true;
-  })
-  .catch(error => {
-    console.error(error);
-    sectionLabel.textContent = "BILDER NICHT GELADEN";
+  const video = windowElement.querySelector("video");
+  const playButton = windowElement.querySelector(".video-play");
+
+  if (!video || !playButton) return;
+
+  playButton.addEventListener("click", async event => {
+
+    event.stopPropagation();
+
+    try {
+      await video.play();
+      windowElement.classList.add("playing");
+    } catch (error) {
+      console.warn("Video konnte nicht gestartet werden:", error);
+    }
+
   });
 
+  video.addEventListener("play", () => {
+    windowElement.classList.add("playing");
+  });
+
+  video.addEventListener("pause", () => {
+    windowElement.classList.remove("playing");
+  });
+
+  video.addEventListener("ended", () => {
+    windowElement.classList.remove("playing");
+  });
+
+});
+
+/* =========================================
+   ZOOM
+========================================= */
+
 function setZoom(value) {
+
   currentZoom = Math.max(
     CONFIG.minZoom,
     Math.min(CONFIG.maxZoom, value)
@@ -363,40 +407,65 @@ function setZoom(value) {
 }
 
 document.getElementById("zoom-in").addEventListener("click", () => {
-  setZoom(currentZoom - .7);
+  setZoom(currentZoom - 100);
 });
 
 document.getElementById("zoom-out").addEventListener("click", () => {
-  setZoom(currentZoom + .7);
+  setZoom(currentZoom + 100);
 });
 
 document.getElementById("zoom-reset").addEventListener("click", () => {
-  setZoom(defaultZoom);
+  setZoom(CONFIG.cameraDistance);
 });
 
 stage.addEventListener("wheel", event => {
+
+  /*
+    Scrollen innerhalb eines Inhaltsfensters
+    soll nicht den Zoom der Kugel verändern.
+  */
+
+  if (event.target.closest(".window-scroll")) return;
+
   event.preventDefault();
-  setZoom(currentZoom + event.deltaY * .008);
+
+  setZoom(currentZoom + event.deltaY * 0.8);
+
 }, { passive: false });
+
+/* =========================================
+   DREHUNG / TOUCH / MAUS
+========================================= */
 
 let rotationX = 0;
 let rotationY = 0;
+
 let velocityX = 0;
 let velocityY = 0;
+
 let isDragging = false;
+
 let previousX = 0;
 let previousY = 0;
+
 let lastTime = 0;
 
 const pointers = new Map();
-let pinchDistance = 0;
-let pinchZoom = currentZoom;
 
-function distance(a, b) {
-  return Math.hypot(a.x - b.x, a.y - b.y);
+function isInteractiveElement(target) {
+
+  return Boolean(
+    target.closest(
+      ".window-scroll, video, button, a"
+    )
+  );
+
 }
 
 stage.addEventListener("pointerdown", event => {
+
+  if (isInteractiveElement(event.target)) return;
+
   pointers.set(event.pointerId, {
     x: event.clientX,
     y: event.clientY
@@ -405,25 +474,26 @@ stage.addEventListener("pointerdown", event => {
   stage.setPointerCapture(event.pointerId);
 
   if (pointers.size === 1) {
+
     isDragging = true;
+
     previousX = event.clientX;
     previousY = event.clientY;
+
     lastTime = performance.now();
-    velocityX = velocityY = 0;
+
+    velocityX = 0;
+    velocityY = 0;
+
     stage.classList.add("dragging");
-    hint.classList.add("hidden");
 
-  } else if (pointers.size === 2) {
-    isDragging = false;
-    stage.classList.remove("dragging");
-
-    const pts = [...pointers.values()];
-    pinchDistance = distance(pts[0], pts[1]);
-    pinchZoom = currentZoom;
+    document.getElementById("hint").classList.add("hidden");
   }
+
 });
 
 stage.addEventListener("pointermove", event => {
+
   if (!pointers.has(event.pointerId)) return;
 
   pointers.set(event.pointerId, {
@@ -431,25 +501,14 @@ stage.addEventListener("pointermove", event => {
     y: event.clientY
   });
 
-  if (pointers.size >= 2) {
-    const pts = [...pointers.values()];
-    const d = distance(pts[0], pts[1]);
-
-    if (pinchDistance > 0) {
-      setZoom(pinchZoom / (d / pinchDistance));
-    }
-
-    return;
-  }
-
-  if (!isDragging) return;
+  if (!isDragging || pointers.size !== 1) return;
 
   const now = performance.now();
+
   const dt = Math.max(1, now - lastTime);
 
   const dx = event.clientX - previousX;
   const dy = event.clientY - previousY;
-  const factor = Math.min(dt / 16, 2);
 
   const mx = dx * CONFIG.dragSpeed;
   const my = dy * CONFIG.dragSpeed;
@@ -457,121 +516,166 @@ stage.addEventListener("pointermove", event => {
   rotationY += mx;
   rotationX += my;
 
-  velocityY = mx / factor;
-  velocityX = my / factor;
+  velocityY = mx / Math.min(dt / 16, 2);
+  velocityX = my / Math.min(dt / 16, 2);
 
   previousX = event.clientX;
   previousY = event.clientY;
+
   lastTime = now;
+
 });
 
 function releasePointer(event) {
+
   pointers.delete(event.pointerId);
 
   if (pointers.size === 0) {
+
     isDragging = false;
+
     stage.classList.remove("dragging");
 
-  } else if (pointers.size === 1) {
-    const p = [...pointers.values()][0];
-
-    previousX = p.x;
-    previousY = p.y;
-    lastTime = performance.now();
-
-    velocityX = velocityY = 0;
-    isDragging = true;
-    stage.classList.add("dragging");
   }
+
 }
 
 stage.addEventListener("pointerup", releasePointer);
 stage.addEventListener("pointercancel", releasePointer);
 stage.addEventListener("lostpointercapture", releasePointer);
 
-const sectionStep = (Math.PI * 2) / sections.length;
+/* =========================================
+   NAVIGATION
+========================================= */
+
+const navButtons = [
+  ...document.querySelectorAll(".nav-link")
+];
+
+const sectionLabel = document.getElementById("current-section");
+const sectionNumber = document.getElementById("section-number");
 
 let targetRotationY = 0;
-let targetRotationX = 0;
 let menuAnimating = false;
 
-function currentIndex() {
-  // Berechnet den sichtbaren Abschnitt unabhängig von der Anzahl
-  // der bereits erfolgten vollständigen Umdrehungen.
-  const normalized = THREE.MathUtils.euclideanModulo(
-    -rotationY,
-    Math.PI * 2
-  );
+function normalizeIndex(index) {
 
-  return Math.round(normalized / sectionStep) % sections.length;
+  return (
+    (index % SECTION_COUNT) + SECTION_COUNT
+  ) % SECTION_COUNT;
+
+}
+
+function currentIndex() {
+
+  const raw = Math.round(-rotationY / SECTION_STEP);
+
+  return normalizeIndex(raw);
+
 }
 
 function updateIndicator() {
+
   const index = currentIndex();
 
-  sectionLabel.textContent = sections[index].name;
+  sectionLabel.textContent = SECTION_NAMES[index];
 
   sectionNumber.textContent =
     `${String(index + 1).padStart(2, "0")} / 05`;
 
   navButtons.forEach((button, i) => {
+
     button.classList.toggle("active", i === index);
+
   });
+
 }
 
 function goToSection(index) {
-  const i = THREE.MathUtils.euclideanModulo(index, sections.length);
 
-  // Die Kugel wird für die Navigation zunächst aufrecht gestellt.
-  targetRotationX = 0;
-
-  // Zielwinkel direkt aus dem festen Abschnittsraster bestimmen.
-  targetRotationY = -i * sectionStep;
-
-  // Den kürzesten Drehweg auswählen.
-  const full = Math.PI * 2;
-
-  while (targetRotationY - rotationY > Math.PI) {
-    targetRotationY -= full;
-  }
-
-  while (targetRotationY - rotationY < -Math.PI) {
-    targetRotationY += full;
-  }
+  const i = normalizeIndex(index);
 
   velocityX = 0;
   velocityY = 0;
+
+  isDragging = false;
+  pointers.clear();
+
+  stage.classList.remove("dragging");
+
+  let destination = -i * SECTION_STEP;
+
+  const fullCircle = Math.PI * 2;
+
+  while (destination - rotationY > Math.PI) {
+    destination -= fullCircle;
+  }
+
+  while (destination - rotationY < -Math.PI) {
+    destination += fullCircle;
+  }
+
+  targetRotationY = destination;
+
   menuAnimating = true;
+
 }
 
 navButtons.forEach(button => {
+
   button.addEventListener("click", () => {
+
     goToSection(Number(button.dataset.section));
+
   });
+
 });
 
 document.getElementById("logo").addEventListener("click", event => {
+
   event.preventDefault();
+
   goToSection(0);
+
 });
 
-for (const [id, url] of [
-  ["instagram-link", LINKS.instagram],
-  ["spotify-link", LINKS.spotify]
-]) {
+/* =========================================
+   SOCIAL LINKS
+========================================= */
+
+function setSocialLink(id, url) {
+
   const link = document.getElementById(id);
 
+  if (!link) return;
+
   if (url) {
+
     link.href = url;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
+
   } else {
+
     link.href = "#";
-    link.addEventListener("click", event => event.preventDefault());
+
+    link.addEventListener("click", event => {
+      event.preventDefault();
+    });
+
   }
+
 }
 
+setSocialLink("instagram-link", LINKS.instagram);
+setSocialLink("spotify-link", LINKS.spotify);
+
+/* =========================================
+   TASTATUR
+========================================= */
+
 window.addEventListener("keydown", event => {
+
   if (event.key === "ArrowRight") {
     goToSection(currentIndex() + 1);
   }
@@ -581,76 +685,97 @@ window.addEventListener("keydown", event => {
   }
 
   if (event.key === "ArrowUp") {
-    rotationX -= .25;
+    rotationX -= 0.2;
   }
 
   if (event.key === "ArrowDown") {
-    rotationX += .25;
+    rotationX += 0.2;
   }
 
   if (event.key === "+" || event.key === "=") {
-    setZoom(currentZoom - .7);
+    setZoom(currentZoom - 100);
   }
 
   if (event.key === "-") {
-    setZoom(currentZoom + .7);
+    setZoom(currentZoom + 100);
   }
 
   if (event.key === "0") {
-    setZoom(defaultZoom);
+    setZoom(CONFIG.cameraDistance);
   }
+
 });
 
+/* =========================================
+   ANIMATION
+========================================= */
+
 function animate() {
+
   requestAnimationFrame(animate);
 
   if (!isDragging && menuAnimating) {
-    const deltaY = targetRotationY - rotationY;
-    const deltaX = targetRotationX - rotationX;
 
-    rotationY += deltaY * .055;
-    rotationX += deltaX * .055;
+    const delta = targetRotationY - rotationY;
 
-    if (
-      Math.abs(deltaY) < .001 &&
-      Math.abs(deltaX) < .001
-    ) {
+    rotationY += delta * 0.055;
+
+    if (Math.abs(delta) < 0.001) {
+
       rotationY = targetRotationY;
-      rotationX = targetRotationX;
       menuAnimating = false;
+
     }
 
   } else if (!isDragging) {
+
     rotationY += velocityY;
     rotationX += velocityX;
 
     velocityY *= CONFIG.friction;
     velocityX *= CONFIG.friction;
 
-    if (Math.abs(velocityY) < .00004) velocityY = 0;
-    if (Math.abs(velocityX) < .00004) velocityX = 0;
+    if (Math.abs(velocityY) < 0.00004) {
+      velocityY = 0;
+    }
+
+    if (Math.abs(velocityX) < 0.00004) {
+      velocityX = 0;
+    }
+
   }
 
-  globeGroup.rotation.set(rotationX, rotationY, 0);
+  globeGroup.rotation.set(
+    rotationX,
+    rotationY,
+    0
+  );
 
   renderer.render(scene, camera);
+
   updateIndicator();
+
 }
 
-function resize() {
-  const w = container.clientWidth;
-  const h = container.clientHeight;
+/* =========================================
+   RESPONSIVE GRÖSSE
+========================================= */
 
-  camera.aspect = w / h;
+function resize() {
+
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+
+  camera.aspect = width / height;
   camera.updateProjectionMatrix();
 
-  renderer.setSize(w, h);
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(width, height);
+
 }
 
 window.addEventListener("resize", resize);
 
-setZoom(defaultZoom);
+setZoom(CONFIG.cameraDistance);
 updateIndicator();
-animate();
 
+animate();
