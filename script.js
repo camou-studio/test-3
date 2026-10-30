@@ -8,10 +8,11 @@ import * as THREE from "three";
 const CONFIG = {
   radius: 3.2,
 
-  desktopZoom: 10.5,
-  mobileZoom: 10.2,
+  // Größere Kugel in der Standardansicht
+  desktopZoom: 8.7,
+  mobileZoom: 8.4,
 
-  minZoom: 7.0,
+  minZoom: 6.0,
   maxZoom: 17,
 
   dragSpeed: 0.0052,
@@ -42,6 +43,7 @@ const LINKS = {
 const sections = [
   {
     name: "HOME",
+    poleLetter: "c",
     eyebrow: "NEW PROJECT / 001",
     title: ["c a m o u"],
     body: [
@@ -53,6 +55,7 @@ const sections = [
 
   {
     name: "MUSIC",
+    poleLetter: "a",
     eyebrow: "LATEST RELEASE",
     title: ["f r a g m e n t e"],
     body: [
@@ -69,6 +72,7 @@ const sections = [
 
   {
     name: "VISUALS",
+    poleLetter: "m",
     eyebrow: "02 — VISUAL WORK",
     title: ["Visuals"],
     body: [
@@ -80,6 +84,7 @@ const sections = [
 
   {
     name: "ARCHIVE",
+    poleLetter: "o",
     eyebrow: "03 — SELECTED WORKS",
     title: ["Archive"],
     body: [
@@ -98,6 +103,7 @@ const sections = [
 
   {
     name: "CONTACT",
+    poleLetter: "u",
     eyebrow: "04 — GET IN TOUCH",
     title: ["Contact"],
     body: [
@@ -126,7 +132,9 @@ const navButtons = [
   ...document.querySelectorAll(".nav-link")
 ];
 
-const isMobile = window.matchMedia("(max-width: 700px)").matches;
+const isMobile = window.matchMedia(
+  "(max-width: 700px)"
+).matches;
 
 const defaultZoom = isMobile
   ? CONFIG.mobileZoom
@@ -196,6 +204,10 @@ const rimLight = new THREE.PointLight(
 rimLight.position.set(4, -1, -3);
 scene.add(rimLight);
 
+/* =========================================
+   KUGELGRUPPE
+========================================= */
+
 const globeGroup = new THREE.Group();
 scene.add(globeGroup);
 
@@ -204,27 +216,41 @@ scene.add(globeGroup);
 ========================================= */
 
 function loadImage(src) {
+
   return new Promise((resolve, reject) => {
+
     const image = new Image();
 
     image.onload = () => resolve(image);
 
     image.onerror = () => {
       reject(
-        new Error(`Bild konnte nicht geladen werden: ${src}`)
+        new Error(
+          `Bild konnte nicht geladen werden: ${src}`
+        )
       );
     };
 
     image.decoding = "async";
     image.src = src;
+
   });
+
 }
 
 /* =========================================
    BILDER ZUSCHNEIDEN
 ========================================= */
 
-function drawCoverCrop(ctx, image, x, y, w, h) {
+function drawCoverCrop(
+  ctx,
+  image,
+  x,
+  y,
+  w,
+  h
+) {
+
   const scale = Math.max(
     w / image.width,
     h / image.height
@@ -247,15 +273,11 @@ function drawCoverCrop(ctx, image, x, y, w, h) {
     w,
     h
   );
+
 }
 
 /* =========================================
    THEMENBEREICH ZEICHNEN
-
-   WICHTIG:
-   Das Bild erscheint nur im Bildfenster.
-   Der restliche Bereich bekommt einen
-   eigenständigen dunklen Hintergrund.
 ========================================= */
 
 function drawPanel(
@@ -266,6 +288,7 @@ function drawPanel(
   panelW,
   canvasH
 ) {
+
   const x = centerX - panelW / 2;
 
   ctx.save();
@@ -284,7 +307,7 @@ function drawPanel(
   );
 
   background.addColorStop(0, "#18221b");
-  background.addColorStop(.5, "#202c23");
+  background.addColorStop(0.5, "#202c23");
   background.addColorStop(1, "#111813");
 
   ctx.fillStyle = background;
@@ -300,16 +323,16 @@ function drawPanel(
 
   const glow = ctx.createRadialGradient(
     centerX,
-    canvasH * .45,
+    canvasH * 0.45,
     20,
     centerX,
-    canvasH * .45,
-    panelW * .8
+    canvasH * 0.45,
+    panelW * 0.8
   );
 
   glow.addColorStop(
     0,
-    "rgba(183,201,170,.12)"
+    "rgba(183,201,170,0.12)"
   );
 
   glow.addColorStop(
@@ -326,24 +349,46 @@ function drawPanel(
     canvasH
   );
 
-  const pad = panelW * .105;
+  const pad = panelW * 0.105;
   const contentX = x + pad;
   const maxTextW = panelW - pad * 2;
 
-  /* 3. KLEINE KATEGORIEZEILE */
+  /* 3. CAMOU-BUCHSTABE
+     Ein Buchstabe pro Themenbereich.
+  */
+
+  ctx.save();
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  ctx.fillStyle = "rgba(235,242,229,0.82)";
+  ctx.font = "300 150px Manrope, Arial";
+
+  ctx.fillText(
+    section.poleLetter,
+    centerX,
+    canvasH * 0.115
+  );
+
+  ctx.restore();
+
+  /* 4. KLEINE KATEGORIEZEILE */
 
   ctx.textAlign = "left";
-  ctx.fillStyle = "rgba(232,239,226,.65)";
+  ctx.textBaseline = "alphabetic";
+
+  ctx.fillStyle = "rgba(232,239,226,0.65)";
   ctx.font = "500 21px 'DM Mono', monospace";
 
   ctx.fillText(
     section.eyebrow,
     contentX,
-    canvasH * .24,
+    canvasH * 0.24,
     maxTextW
   );
 
-  /* 4. GROSSE ÜBERSCHRIFT */
+  /* 5. GROSSE ÜBERSCHRIFT */
 
   ctx.fillStyle = "#f0f2eb";
 
@@ -351,78 +396,81 @@ function drawPanel(
     ? "300 45px Manrope, Arial"
     : "300 58px Manrope, Arial";
 
-  const titleY = canvasH * .34;
+  const titleY = canvasH * 0.31;
   const titleGap = 76;
 
   section.title.forEach((line, i) => {
+
     ctx.fillText(
       line,
       contentX,
       titleY + i * titleGap,
       maxTextW
     );
+
   });
 
-  /* 5. FLIESSTEXT
-
-     Der Abstand zur Überschrift
-     ist bewusst vergrößert.
-  */
+  /* 6. FLIESSTEXT */
 
   const bodyStart =
     titleY +
     (section.title.length - 1) * titleGap +
     100;
 
-  ctx.fillStyle = "rgba(235,239,230,.86)";
+  ctx.fillStyle = "rgba(235,239,230,0.86)";
   ctx.font = "300 22px Manrope, Arial";
 
   section.body.forEach((line, i) => {
+
     ctx.fillText(
       line,
       contentX,
       bodyStart + i * 43,
       maxTextW
     );
+
   });
 
-  /* 6. ZUSATZINFORMATIONEN */
+  /* 7. ZUSATZINFORMATIONEN */
 
   if (section.extra) {
+
     const extraStart =
-      bodyStart + section.body.length * 43 + 35;
+      bodyStart +
+      section.body.length * 43 +
+      35;
 
     ctx.fillStyle = "#c1d0b7";
     ctx.font = "500 18px 'DM Mono', monospace";
 
     section.extra.forEach((line, i) => {
+
       ctx.fillText(
         line,
         contentX,
         extraStart + i * 39,
         maxTextW
       );
+
     });
+
   }
 
-  /* 7. BILDFENSTER
-
-     Das Bild wird ausschließlich
-     innerhalb dieses Rahmens gezeichnet.
+  /* 8. BILDFENSTER
+     Das Bild erscheint nur innerhalb
+     dieses Fensters.
   */
 
-  const imageW = panelW * .48;
-  const imageH = canvasH * .19;
+  const imageW = panelW * 0.48;
+  const imageH = canvasH * 0.19;
 
   const imageX = centerX - imageW / 2;
-
-  // Etwas höher als in der vorherigen Version.
-  const imageY = canvasH * .56;
+  const imageY = canvasH * 0.53;
 
   ctx.save();
 
   // Dunkler Rahmenhintergrund
-  ctx.fillStyle = "rgba(8,13,10,.9)";
+  ctx.fillStyle = "rgba(8,13,10,0.9)";
 
   ctx.fillRect(
     imageX - 8,
@@ -445,7 +493,7 @@ function drawPanel(
 
   ctx.clip();
 
-  // Nur hier wird das eigentliche Bild gezeichnet.
+  // Bild ausschließlich im Fenster zeichnen
   drawCoverCrop(
     ctx,
     image,
@@ -457,8 +505,8 @@ function drawPanel(
 
   ctx.restore();
 
-  // Dezente Kontur
-  ctx.strokeStyle = "rgba(226,235,220,.48)";
+  // Feiner Rahmen
+  ctx.strokeStyle = "rgba(226,235,220,0.48)";
   ctx.lineWidth = 2;
 
   ctx.strokeRect(
@@ -470,37 +518,38 @@ function drawPanel(
 
   ctx.restore();
 
-  /* 8. UNTERE LINIE */
+  /* 9. UNTERE LINIE */
 
-  ctx.strokeStyle = "rgba(226,235,220,.35)";
+  ctx.strokeStyle = "rgba(226,235,220,0.35)";
   ctx.lineWidth = 2;
 
   ctx.beginPath();
 
   ctx.moveTo(
     contentX,
-    canvasH * .88
+    canvasH * 0.88
   );
 
   ctx.lineTo(
     contentX + maxTextW,
-    canvasH * .88
+    canvasH * 0.88
   );
 
   ctx.stroke();
 
-  /* 9. SEITENNUMMER */
+  /* 10. SEITENNUMMER */
 
-  ctx.fillStyle = "rgba(232,239,226,.62)";
+  ctx.fillStyle = "rgba(232,239,226,0.62)";
   ctx.font = "19px 'DM Mono', monospace";
 
   ctx.fillText(
     `${String(sections.indexOf(section) + 1).padStart(2, "0")} / 05`,
     contentX,
-    canvasH * .92
+    canvasH * 0.92
   );
 
   ctx.restore();
+
 }
 
 /* =========================================
@@ -551,7 +600,7 @@ async function createGlobeTexture() {
       canvas.height
     );
 
-    // Nahtübergang am Rand der Kugeltextur
+    // Übergang am Rand der Textur
     if (x < 0) {
 
       drawPanel(
@@ -588,6 +637,7 @@ async function createGlobeTexture() {
   texture.needsUpdate = true;
 
   return texture;
+
 }
 
 /* =========================================
@@ -644,8 +694,7 @@ createGlobeTexture()
     globeMaterial.needsUpdate = true;
 
     console.info(
-      "CAMOU: Alle fünf Bilder wurden geladen.",
-      ASSETS
+      "CAMOU: Alle fünf Bereiche wurden geladen."
     );
 
   })
@@ -673,31 +722,43 @@ function setZoom(value) {
   );
 
   camera.position.z = currentZoom;
+
 }
 
 document
   .getElementById("zoom-in")
   .addEventListener("click", () => {
-    setZoom(currentZoom - .7);
+
+    setZoom(currentZoom - 0.7);
+
   });
 
 document
   .getElementById("zoom-out")
   .addEventListener("click", () => {
-    setZoom(currentZoom + .7);
+
+    setZoom(currentZoom + 0.7);
+
   });
 
 document
   .getElementById("zoom-reset")
   .addEventListener("click", () => {
+
     setZoom(defaultZoom);
+
   });
 
 stage.addEventListener(
   "wheel",
   event => {
+
     event.preventDefault();
-    setZoom(currentZoom + event.deltaY * .008);
+
+    setZoom(
+      currentZoom + event.deltaY * 0.008
+    );
+
   },
   { passive: false }
 );
@@ -724,10 +785,12 @@ let pinchDistance = 0;
 let pinchZoom = currentZoom;
 
 function distance(a, b) {
+
   return Math.hypot(
     a.x - b.x,
     a.y - b.y
   );
+
 }
 
 stage.addEventListener("pointerdown", event => {
@@ -768,6 +831,7 @@ stage.addEventListener("pointerdown", event => {
     );
 
     pinchZoom = currentZoom;
+
   }
 
 });
@@ -792,12 +856,15 @@ stage.addEventListener("pointermove", event => {
     );
 
     if (pinchDistance > 0) {
+
       setZoom(
         pinchZoom / (d / pinchDistance)
       );
+
     }
 
     return;
+
   }
 
   if (!isDragging) return;
@@ -860,7 +927,9 @@ function releasePointer(event) {
     isDragging = true;
 
     stage.classList.add("dragging");
+
   }
+
 }
 
 stage.addEventListener("pointerup", releasePointer);
@@ -887,6 +956,7 @@ function currentIndex() {
     (raw % sections.length) +
     sections.length
   ) % sections.length;
+
 }
 
 function updateIndicator() {
@@ -941,6 +1011,7 @@ function goToSection(index) {
 
   targetRotationY = destination;
   menuAnimating = true;
+
 }
 
 navButtons.forEach(button => {
@@ -960,6 +1031,7 @@ document
   .addEventListener("click", event => {
 
     event.preventDefault();
+
     goToSection(0);
 
   });
@@ -984,7 +1056,9 @@ for (const [id, url] of [
     link.href = "#";
 
     link.addEventListener("click", event => {
+
       event.preventDefault();
+
     });
 
   }
@@ -1006,19 +1080,19 @@ window.addEventListener("keydown", event => {
   }
 
   if (event.key === "ArrowUp") {
-    rotationX -= .25;
+    rotationX -= 0.25;
   }
 
   if (event.key === "ArrowDown") {
-    rotationX += .25;
+    rotationX += 0.25;
   }
 
   if (event.key === "+" || event.key === "=") {
-    setZoom(currentZoom - .7);
+    setZoom(currentZoom - 0.7);
   }
 
   if (event.key === "-") {
-    setZoom(currentZoom + .7);
+    setZoom(currentZoom + 0.7);
   }
 
   if (event.key === "0") {
@@ -1040,9 +1114,9 @@ function animate() {
     const delta =
       targetRotationY - rotationY;
 
-    rotationY += delta * .055;
+    rotationY += delta * 0.055;
 
-    if (Math.abs(delta) < .001) {
+    if (Math.abs(delta) < 0.001) {
 
       rotationY = targetRotationY;
       menuAnimating = false;
@@ -1057,11 +1131,11 @@ function animate() {
     velocityY *= CONFIG.friction;
     velocityX *= CONFIG.friction;
 
-    if (Math.abs(velocityY) < .00004) {
+    if (Math.abs(velocityY) < 0.00004) {
       velocityY = 0;
     }
 
-    if (Math.abs(velocityX) < .00004) {
+    if (Math.abs(velocityX) < 0.00004) {
       velocityX = 0;
     }
 
