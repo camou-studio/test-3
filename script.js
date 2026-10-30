@@ -350,8 +350,8 @@ function drawPanel(
   );
 
   const pad = panelW * 0.70;
-  const contentX = centerX - contentW / 2;
-  const maxTextW = contentW;
+  const contentX = x + pad;
+  const maxTextW = panelW - pad * 2;
 
   /* 3. CAMOU-BUCHSTABE
      Ein Buchstabe pro Themenbereich.
