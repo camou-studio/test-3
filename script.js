@@ -1,11 +1,13 @@
+
 import * as THREE from "three";
 
-/* CAMOU — image-textured 3D globe */
+/* =========================================
+   CAMOU — 3D GLOBE
+========================================= */
 
 const CONFIG = {
   radius: 3.2,
 
-  // Größerer Abstand = Kugel erscheint kleiner.
   desktopZoom: 10.5,
   mobileZoom: 10.2,
 
@@ -16,8 +18,10 @@ const CONFIG = {
   friction: 0.94
 };
 
-// Bilder relativ zur Script-Datei laden.
-// Funktioniert auch in GitHub-Pages-Unterordnern.
+/* =========================================
+   BILDER
+========================================= */
+
 const ASSETS = {
   home: new URL("./assets/hero.jpg", import.meta.url).href,
   music: new URL("./assets/release.jpg", import.meta.url).href,
@@ -31,7 +35,9 @@ const LINKS = {
   spotify: ""
 };
 
-/* INHALTE */
+/* =========================================
+   INHALTE DER FÜNF BEREICHE
+========================================= */
 
 const sections = [
   {
@@ -56,8 +62,8 @@ const sections = [
     ],
     image: ASSETS.music,
     extra: [
-      "JETZT HÖREN  →",
-      "SPOTIFY   /   APPLE MUSIC   /   YOUTUBE"
+      "JETZT HÖREN →",
+      "SPOTIFY / APPLE MUSIC / YOUTUBE"
     ]
   },
 
@@ -105,7 +111,9 @@ const sections = [
   }
 ];
 
-/* ELEMENTE */
+/* =========================================
+   ELEMENTE
+========================================= */
 
 const container = document.getElementById("globe");
 const stage = document.querySelector(".globe-stage");
@@ -118,13 +126,15 @@ const navButtons = [
   ...document.querySelectorAll(".nav-link")
 ];
 
-const isMobile = matchMedia("(max-width: 700px)").matches;
+const isMobile = window.matchMedia("(max-width: 700px)").matches;
 
 const defaultZoom = isMobile
   ? CONFIG.mobileZoom
   : CONFIG.desktopZoom;
 
-/* THREE.JS SZENE */
+/* =========================================
+   THREE.JS SZENE
+========================================= */
 
 const scene = new THREE.Scene();
 
@@ -147,7 +157,7 @@ const renderer = new THREE.WebGLRenderer({
 });
 
 renderer.setPixelRatio(
-  Math.min(devicePixelRatio, 2)
+  Math.min(window.devicePixelRatio, 2)
 );
 
 renderer.setSize(
@@ -161,7 +171,9 @@ renderer.toneMappingExposure = 1.1;
 
 container.appendChild(renderer.domElement);
 
-/* LICHT */
+/* =========================================
+   LICHT
+========================================= */
 
 scene.add(
   new THREE.AmbientLight(0xddebd8, 1.15)
@@ -187,7 +199,9 @@ scene.add(rimLight);
 const globeGroup = new THREE.Group();
 scene.add(globeGroup);
 
-/* BILDER LADEN */
+/* =========================================
+   BILDER LADEN
+========================================= */
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -206,7 +220,9 @@ function loadImage(src) {
   });
 }
 
-/* BILDER ZUSCHNEIDEN */
+/* =========================================
+   BILDER ZUSCHNEIDEN
+========================================= */
 
 function drawCoverCrop(ctx, image, x, y, w, h) {
   const scale = Math.max(
@@ -233,7 +249,14 @@ function drawCoverCrop(ctx, image, x, y, w, h) {
   );
 }
 
-/* THEMENBEREICH ZEICHNEN */
+/* =========================================
+   THEMENBEREICH ZEICHNEN
+
+   WICHTIG:
+   Das Bild erscheint nur im Bildfenster.
+   Der restliche Bereich bekommt einen
+   eigenständigen dunklen Hintergrund.
+========================================= */
 
 function drawPanel(
   ctx,
@@ -251,55 +274,42 @@ function drawPanel(
   ctx.rect(x, 0, panelW, canvasH);
   ctx.clip();
 
-  // Hintergrundbild über den gesamten Bereich.
-  // Das Bild wird anschließend stark abgedunkelt.
-  drawCoverCrop(
-    ctx,
-    image,
+  /* 1. EIGENER HINTERGRUND */
+
+  const background = ctx.createLinearGradient(
+    x,
+    0,
+    x + panelW,
+    canvasH
+  );
+
+  background.addColorStop(0, "#18221b");
+  background.addColorStop(.5, "#202c23");
+  background.addColorStop(1, "#111813");
+
+  ctx.fillStyle = background;
+
+  ctx.fillRect(
     x,
     0,
     panelW,
     canvasH
   );
 
-  const shade = ctx.createLinearGradient(
-    0,
-    0,
-    0,
-    canvasH
-  );
+  /* 2. DEZENTER LICHTSCHEIN */
 
-  shade.addColorStop(
-    0,
-    "rgba(5,10,7,.45)"
-  );
-
-  shade.addColorStop(
-    .38,
-    "rgba(5,10,7,.56)"
-  );
-
-  shade.addColorStop(
-    1,
-    "rgba(5,10,7,.83)"
-  );
-
-  ctx.fillStyle = shade;
-  ctx.fillRect(x, 0, panelW, canvasH);
-
-  // Dezenter Lichtschein.
   const glow = ctx.createRadialGradient(
     centerX,
-    canvasH * .48,
-    30,
+    canvasH * .45,
+    20,
     centerX,
-    canvasH * .48,
+    canvasH * .45,
     panelW * .8
   );
 
   glow.addColorStop(
     0,
-    "rgba(183,201,170,.16)"
+    "rgba(183,201,170,.12)"
   );
 
   glow.addColorStop(
@@ -308,26 +318,32 @@ function drawPanel(
   );
 
   ctx.fillStyle = glow;
-  ctx.fillRect(x, 0, panelW, canvasH);
+
+  ctx.fillRect(
+    x,
+    0,
+    panelW,
+    canvasH
+  );
 
   const pad = panelW * .105;
   const contentX = x + pad;
   const maxTextW = panelW - pad * 2;
 
-  /* KLEINE KATEGORIE */
+  /* 3. KLEINE KATEGORIEZEILE */
 
   ctx.textAlign = "left";
-  ctx.fillStyle = "rgba(232,239,226,.78)";
-  ctx.font = "500 23px 'DM Mono', monospace";
+  ctx.fillStyle = "rgba(232,239,226,.65)";
+  ctx.font = "500 21px 'DM Mono', monospace";
 
   ctx.fillText(
     section.eyebrow,
     contentX,
-    canvasH * .32,
+    canvasH * .24,
     maxTextW
   );
 
-  /* ÜBERSCHRIFTEN */
+  /* 4. GROSSE ÜBERSCHRIFT */
 
   ctx.fillStyle = "#f0f2eb";
 
@@ -335,21 +351,28 @@ function drawPanel(
     ? "300 45px Manrope, Arial"
     : "300 58px Manrope, Arial";
 
-  const titleY = canvasH * .32;
+  const titleY = canvasH * .34;
+  const titleGap = 76;
 
   section.title.forEach((line, i) => {
     ctx.fillText(
       line,
       contentX,
-      titleY + i * 70,
+      titleY + i * titleGap,
       maxTextW
     );
   });
 
-  /* FLIESSTEXT */
+  /* 5. FLIESSTEXT
+
+     Der Abstand zur Überschrift
+     ist bewusst vergrößert.
+  */
 
   const bodyStart =
-    titleY + section.title.length * 70 + 22;
+    titleY +
+    (section.title.length - 1) * titleGap +
+    100;
 
   ctx.fillStyle = "rgba(235,239,230,.86)";
   ctx.font = "300 22px Manrope, Arial";
@@ -363,11 +386,11 @@ function drawPanel(
     );
   });
 
-  /* ZUSATZINFORMATIONEN */
+  /* 6. ZUSATZINFORMATIONEN */
 
   if (section.extra) {
     const extraStart =
-      bodyStart + section.body.length * 43 + 48;
+      bodyStart + section.body.length * 43 + 35;
 
     ctx.fillStyle = "#c1d0b7";
     ctx.font = "500 18px 'DM Mono', monospace";
@@ -382,18 +405,25 @@ function drawPanel(
     });
   }
 
-  /* BILD IM EIGENEN FENSTER */
+  /* 7. BILDFENSTER
+
+     Das Bild wird ausschließlich
+     innerhalb dieses Rahmens gezeichnet.
+  */
 
   const imageW = panelW * .48;
   const imageH = canvasH * .19;
 
   const imageX = centerX - imageW / 2;
-  const imageY = canvasH * .59;
+
+  // Etwas höher als in der vorherigen Version.
+  const imageY = canvasH * .56;
 
   ctx.save();
 
-  // Fensterrahmen.
-  ctx.fillStyle = "rgba(8,13,10,.75)";
+  // Dunkler Rahmenhintergrund
+  ctx.fillStyle = "rgba(8,13,10,.9)";
+
   ctx.fillRect(
     imageX - 8,
     imageY - 8,
@@ -401,10 +431,11 @@ function drawPanel(
     imageH + 16
   );
 
-  // Bildfläche.
+  // Bildfläche begrenzen
   ctx.save();
 
   ctx.beginPath();
+
   ctx.rect(
     imageX,
     imageY,
@@ -414,6 +445,7 @@ function drawPanel(
 
   ctx.clip();
 
+  // Nur hier wird das eigentliche Bild gezeichnet.
   drawCoverCrop(
     ctx,
     image,
@@ -425,7 +457,7 @@ function drawPanel(
 
   ctx.restore();
 
-  // Dezente Kontur.
+  // Dezente Kontur
   ctx.strokeStyle = "rgba(226,235,220,.48)";
   ctx.lineWidth = 2;
 
@@ -438,7 +470,7 @@ function drawPanel(
 
   ctx.restore();
 
-  /* UNTERE LINIE */
+  /* 8. UNTERE LINIE */
 
   ctx.strokeStyle = "rgba(226,235,220,.35)";
   ctx.lineWidth = 2;
@@ -457,7 +489,7 @@ function drawPanel(
 
   ctx.stroke();
 
-  /* SEITENNUMMER */
+  /* 9. SEITENNUMMER */
 
   ctx.fillStyle = "rgba(232,239,226,.62)";
   ctx.font = "19px 'DM Mono', monospace";
@@ -471,7 +503,9 @@ function drawPanel(
   ctx.restore();
 }
 
-/* KUGELTEXTUR ERSTELLEN */
+/* =========================================
+   KUGELTEXTUR ERSTELLEN
+========================================= */
 
 async function createGlobeTexture() {
 
@@ -503,13 +537,8 @@ async function createGlobeTexture() {
 
   sections.forEach((section, index) => {
 
-    // Home liegt vorne auf der Kugel.
-    // Jeder Bereich nimmt 72 Grad ein.
-
-    let center =
+    const center =
       canvas.width * (0.25 + index / sections.length);
-
-    center %= canvas.width;
 
     const x = center - panelW / 2;
 
@@ -522,7 +551,7 @@ async function createGlobeTexture() {
       canvas.height
     );
 
-    // Übergang an der Textur-Naht.
+    // Nahtübergang am Rand der Kugeltextur
     if (x < 0) {
 
       drawPanel(
@@ -561,7 +590,9 @@ async function createGlobeTexture() {
   return texture;
 }
 
-/* KUGEL ERSTELLEN */
+/* =========================================
+   KUGEL ERSTELLEN
+========================================= */
 
 const globeGeometry = new THREE.SphereGeometry(
   CONFIG.radius,
@@ -601,7 +632,9 @@ const atmosphere = new THREE.Mesh(
 
 globeGroup.add(atmosphere);
 
-/* TEXTUR AUF DIE KUGEL LEGEN */
+/* =========================================
+   TEXTUR AUF DIE KUGEL LEGEN
+========================================= */
 
 createGlobeTexture()
 
@@ -628,7 +661,9 @@ createGlobeTexture()
 
   });
 
-/* ZOOM */
+/* =========================================
+   ZOOM
+========================================= */
 
 function setZoom(value) {
 
@@ -667,7 +702,9 @@ stage.addEventListener(
   { passive: false }
 );
 
-/* DREHUNG UND TOUCH */
+/* =========================================
+   DREHUNG UND TOUCH
+========================================= */
 
 let rotationX = 0;
 let rotationY = 0;
@@ -744,7 +781,7 @@ stage.addEventListener("pointermove", event => {
     y: event.clientY
   });
 
-  // Zwei Finger: Zoom.
+  // Zwei Finger: Zoom
   if (pointers.size >= 2) {
 
     const pts = [...pointers.values()];
@@ -830,7 +867,9 @@ stage.addEventListener("pointerup", releasePointer);
 stage.addEventListener("pointercancel", releasePointer);
 stage.addEventListener("lostpointercapture", releasePointer);
 
-/* NAVIGATION ZWISCHEN DEN FÜNF BEREICHEN */
+/* =========================================
+   NAVIGATION ZWISCHEN DEN BEREICHEN
+========================================= */
 
 const sectionStep =
   (Math.PI * 2) / sections.length;
@@ -877,7 +916,6 @@ function goToSection(index) {
     ((index % sections.length) + sections.length) %
     sections.length;
 
-  // Kugel zuerst wieder gerade ausrichten.
   rotationX = 0;
 
   velocityX = 0;
@@ -926,7 +964,9 @@ document
 
   });
 
-/* SOCIAL-MEDIA-LINKS */
+/* =========================================
+   SOCIAL-MEDIA-LINKS
+========================================= */
 
 for (const [id, url] of [
   ["instagram-link", LINKS.instagram],
@@ -951,7 +991,9 @@ for (const [id, url] of [
 
 }
 
-/* TASTATURSTEUERUNG */
+/* =========================================
+   TASTATURSTEUERUNG
+========================================= */
 
 window.addEventListener("keydown", event => {
 
@@ -985,7 +1027,9 @@ window.addEventListener("keydown", event => {
 
 });
 
-/* ANIMATION */
+/* =========================================
+   ANIMATION
+========================================= */
 
 function animate() {
 
@@ -1037,7 +1081,9 @@ function animate() {
 
 animate();
 
-/* FENSTERGRÖSSE ANPASSEN */
+/* =========================================
+   FENSTERGRÖSSE ANPASSEN
+========================================= */
 
 function resize() {
 
@@ -1050,7 +1096,7 @@ function resize() {
   renderer.setSize(w, h);
 
   renderer.setPixelRatio(
-    Math.min(devicePixelRatio, 2)
+    Math.min(window.devicePixelRatio, 2)
   );
 
 }
@@ -1059,3 +1105,4 @@ window.addEventListener("resize", resize);
 
 setZoom(defaultZoom);
 updateIndicator();
+
