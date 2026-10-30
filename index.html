@@ -3,216 +3,51 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#101310">
-  <meta name="description" content="Camou — independent music and visual art.">
-  <title>Camou — Music & Visuals</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#101411">
+  <title>CAMOU — Independent Creative Studio</title>
   <link rel="stylesheet" href="style.css">
-  <script src="script.js" defer></script>
 </head>
 
 <body>
-  <div class="noise" aria-hidden="true"></div>
+  <main class="experience">
 
-  <header class="topbar">
-    <a class="wordmark" href="#home" aria-label="Camou — Home">CAMOU<span>®</span></a>
+    <header class="topbar">
+      <a class="logo" href="#" id="logo">CAMOU<span>.</span></a>
 
-    <div class="topbar-right">
-      <span class="interaction-hint" id="interactionHint">DRAG TO EXPLORE</span>
-      <button class="menu-toggle" id="menuToggle" aria-label="Menü öffnen" aria-expanded="false">
-        <span></span><span></span>
-      </button>
-    </div>
-  </header>
+      <nav class="navigation" aria-label="Hauptnavigation">
+        <button data-section="0" class="nav-link active">Home</button>
+        <button data-section="1" class="nav-link">Music</button>
+        <button data-section="2" class="nav-link">Visuals</button>
+        <button data-section="3" class="nav-link">Archive</button>
+        <button data-section="4" class="nav-link">Contact</button>
+      </nav>
 
-  <nav class="menu" id="menu" aria-hidden="true">
-    <a href="#home" data-target="0">Home <span>01</span></a>
-    <a href="#music" data-target="1">Music <span>02</span></a>
-    <a href="#visuals" data-target="2">Visuals <span>03</span></a>
-    <a href="#archive" data-target="3">Archive <span>04</span></a>
-    <a href="#contact" data-target="4">Contact <span>05</span></a>
-  </nav>
+      <div class="top-note">INDEPENDENT CREATIVE STUDIO</div>
+    </header>
 
-  <main>
-    <div class="scene" id="scene">
-      <div class="scene-glow" aria-hidden="true"></div>
-      <div class="sphere" id="sphere">
+    <section class="globe-stage" aria-label="Drehbare Website-Kugel">
+      <div id="globe"></div>
 
-        <!-- HOME -->
-        <section class="panel panel-home" data-index="0" id="home" aria-label="Home">
-          <div class="panel-inner home-layout">
-            <div class="eyebrow"><span class="status-dot"></span> INDEPENDENT CREATIVE PROJECT</div>
-
-            <div class="home-title-wrap">
-              <p class="pre-title">SOUND / IMAGE / EXPRESSION</p>
-              <h1>CAMOU<span class="title-period">.</span></h1>
-              <p class="home-subtitle">A space between sound and vision.</p>
-            </div>
-
-            <div class="home-bottom">
-              <span>SCROLL THROUGH SPACE<br>DRAG TO ROTATE</span>
-              <span class="home-coordinate">47° 08'  N — 08° 35' E</span>
-            </div>
-          </div>
-          <div class="home-art" aria-hidden="true">
-            <div class="art-ring ring-a"></div>
-            <div class="art-ring ring-b"></div>
-            <div class="art-core"></div>
-            <div class="art-orbit"></div>
-          </div>
-        </section>
-
-        <!-- MUSIC -->
-        <section class="panel panel-music" data-index="1" id="music" aria-label="Music">
-          <div class="panel-inner">
-            <div class="section-topline">
-              <span>01 / SOUND</span>
-              <span>SELECTED RELEASE</span>
-            </div>
-
-            <div class="music-content">
-              <div class="release-art" aria-label="Abstrakte Covergrafik">
-                <div class="cover-shape cover-shape-one"></div>
-                <div class="cover-shape cover-shape-two"></div>
-                <div class="cover-grain"></div>
-                <span class="cover-label">CAMOU<br>001</span>
-              </div>
-
-              <div class="release-info">
-                <p class="eyebrow">LATEST RELEASE</p>
-                <h2>fragmente</h2>
-                <p class="release-description">
-                  A collection of sounds, moments and fragments.
-                  An ongoing exploration of atmosphere and emotion.
-                </p>
-                <div class="release-meta">
-                  <span>CAMOU</span>
-                  <span>2025</span>
-                  <span>INDEPENDENT</span>
-                </div>
-
-                <div class="stream-links">
-                  <a href="https://open.spotify.com/" target="_blank" rel="noopener noreferrer">SPOTIFY ↗</a>
-                  <a href="https://music.apple.com/" target="_blank" rel="noopener noreferrer">APPLE MUSIC ↗</a>
-                  <a href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer">YOUTUBE ↗</a>
-                </div>
-              </div>
-            </div>
-
-            <div class="section-footer"><span>LISTEN / FEEL / REPEAT</span><span>CAMOU — MUSIC</span></div>
-          </div>
-        </section>
-
-        <!-- VISUALS -->
-        <section class="panel panel-visuals" data-index="2" id="visuals" aria-label="Visuals">
-          <div class="panel-inner">
-            <div class="section-topline">
-              <span>02 / IMAGE</span>
-              <span>VISUAL EXPERIMENTS</span>
-            </div>
-
-            <div class="visuals-heading">
-              <p class="eyebrow">A STUDY OF FORM</p>
-              <h2>Visuals<span>.</span></h2>
-              <p>Images, textures and visual notes from the Camou universe.</p>
-            </div>
-
-            <div class="visual-grid">
-              <div class="visual-tile visual-tile-large">
-                <div class="visual-abstract abstract-one"></div>
-                <span>FORM STUDY — 001</span>
-              </div>
-              <div class="visual-tile">
-                <div class="visual-abstract abstract-two"></div>
-                <span>TEXTURE — 002</span>
-              </div>
-              <div class="visual-tile">
-                <div class="visual-abstract abstract-three"></div>
-                <span>MOTION — 003</span>
-              </div>
-            </div>
-
-            <div class="section-footer"><span>SELECTED VISUALS</span><span>CAMOU — IMAGE</span></div>
-          </div>
-        </section>
-
-        <!-- ARCHIVE -->
-        <section class="panel panel-archive" data-index="3" id="archive" aria-label="Archive">
-          <div class="panel-inner">
-            <div class="section-topline">
-              <span>03 / MEMORY</span>
-              <span>PAST & PRESENT</span>
-            </div>
-
-            <div class="archive-heading">
-              <p class="eyebrow">COLLECTED OVER TIME</p>
-              <h2>Archive<span>.</span></h2>
-            </div>
-
-            <div class="archive-list">
-              <article class="archive-item">
-                <span class="archive-number">001</span>
-                <div><h3>fragmente</h3><p>Music / Release</p></div>
-                <span class="archive-year">2025</span>
-              </article>
-              <article class="archive-item">
-                <span class="archive-number">002</span>
-                <div><h3>Visual notes</h3><p>Image / Experiments</p></div>
-                <span class="archive-year">2025</span>
-              </article>
-              <article class="archive-item">
-                <span class="archive-number">003</span>
-                <div><h3>In progress</h3><p>Sound / Research</p></div>
-                <span class="archive-year">ONGOING</span>
-              </article>
-            </div>
-
-            <div class="section-footer"><span>NOTHING IS EVER FINISHED</span><span>CAMOU — ARCHIVE</span></div>
-          </div>
-        </section>
-
-        <!-- CONTACT -->
-        <section class="panel panel-contact" data-index="4" id="contact" aria-label="Contact">
-          <div class="panel-inner contact-layout">
-            <div class="section-topline">
-              <span>04 / CONNECTION</span>
-              <span>GET IN TOUCH</span>
-            </div>
-
-            <div class="contact-main">
-              <p class="eyebrow">LET'S CONNECT</p>
-              <h2>Say<br>hello<span>.</span></h2>
-              <a class="contact-email" href="mailto:camou.kontakt@gmail.com">
-                CAMOU.KONTAKT@GMAIL.COM ↗
-              </a>
-            </div>
-
-            <div class="contact-bottom">
-              <div class="social-links">
-                <a href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer">INSTAGRAM ↗</a>
-                <a href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer">YOUTUBE ↗</a>
-              </div>
-              <span>BASED IN SWITZERLAND</span>
-            </div>
-          </div>
-        </section>
-
+      <div class="interaction-hint" id="hint">
+        <span class="hint-dot"></span>
+        DRAG TO EXPLORE
       </div>
-    </div>
+
+      <div class="section-indicator">
+        <span id="current-section">HOME</span>
+        <span class="indicator-line"></span>
+        <span id="section-number">01 / 05</span>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>CAMOU STUDIO © 2026</span>
+      <span class="footer-center">A WORLD OF ITS OWN</span>
+      <a href="mailto:camou.kontakt@gmail.com">GET IN TOUCH ↗</a>
+    </footer>
+
   </main>
 
-  <footer class="page-footer">
-    <span>© CAMOU 2025</span>
-    <div class="progress-wrap">
-      <span id="currentSection">HOME</span>
-      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
-      <span id="sectionCounter">01 / 05</span>
-    </div>
-    <span>AN ENDLESS SPACE</span>
-  </footer>
-
-  <div class="drag-cursor" id="dragCursor" aria-hidden="true">DRAG</div>
+  <script type="module" src="script.js"></script>
 </body>
 </html>
