@@ -4,29 +4,46 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#101411">
-  <title>CAMOU — Independent Creative Studio</title>
+
+  <title>camou — independent artist</title>
+
   <link rel="stylesheet" href="style.css">
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+      }
+    }
+  </script>
 </head>
 
 <body>
   <main class="experience">
 
     <header class="topbar">
-      <a class="logo" href="#" id="logo">CAMOU<span>.</span></a>
+      <a class="logo" href="#" id="logo">camou<span>.</span></a>
 
       <nav class="navigation" aria-label="Hauptnavigation">
-        <button data-section="0" class="nav-link active">Home</button>
-        <button data-section="1" class="nav-link">Music</button>
-        <button data-section="2" class="nav-link">Visuals</button>
-        <button data-section="3" class="nav-link">Archive</button>
-        <button data-section="4" class="nav-link">Contact</button>
+        <button class="nav-link active" data-section="0">Home</button>
+        <button class="nav-link" data-section="1">Music</button>
+        <button class="nav-link" data-section="2">Visuals</button>
+        <button class="nav-link" data-section="3">Archive</button>
+        <button class="nav-link" data-section="4">Contact</button>
       </nav>
 
-      <div class="top-note">INDEPENDENT CREATIVE STUDIO</div>
+      <div class="top-note">INDEPENDENT ARTIST / SWITZERLAND</div>
     </header>
 
-    <section class="globe-stage" aria-label="Drehbare Website-Kugel">
+    <section class="globe-stage" aria-label="Interaktive Camou-Kugel">
+
       <div id="globe"></div>
+
+      <div class="zoom-controls" aria-label="Zoom-Steuerung">
+        <button id="zoom-in" aria-label="Vergrößern">+</button>
+        <button id="zoom-out" aria-label="Verkleinern">−</button>
+        <button id="zoom-reset" aria-label="Zoom zurücksetzen">↺</button>
+      </div>
 
       <div class="interaction-hint" id="hint">
         <span class="hint-dot"></span>
@@ -38,12 +55,17 @@
         <span class="indicator-line"></span>
         <span id="section-number">01 / 05</span>
       </div>
+
     </section>
 
     <footer class="footer">
-      <span>CAMOU STUDIO © 2026</span>
-      <span class="footer-center">A WORLD OF ITS OWN</span>
-      <a href="mailto:camou.kontakt@gmail.com">GET IN TOUCH ↗</a>
+      <span>camou — independent artist / Switzerland</span>
+
+      <div class="footer-links">
+        <a id="instagram-link" href="#" target="_blank" rel="noopener">Instagram</a>
+        <a id="spotify-link" href="#" target="_blank" rel="noopener">Spotify</a>
+        <a href="mailto:camou.kontakt@gmail.com">Contact ↗</a>
+      </div>
     </footer>
 
   </main>
