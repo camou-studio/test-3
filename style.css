@@ -1,176 +1,333 @@
-/* =========================================
-   CAMOU – UNSICHTBARE KUGEL-NAVIGATION
-   ========================================= */
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --background: #101411;
+  --foreground: #e9eee8;
+  --muted: #929b91;
+  --accent: #a9b9a1;
+  --line: rgba(220, 230, 218, 0.15);
+  --mono: "DM Mono", monospace;
+  --sans: "Manrope", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
 
 html,
 body {
+  margin: 0;
   width: 100%;
   height: 100%;
-  margin: 0;
   overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--sans);
 }
 
 body {
-  perspective: 1400px;
   overscroll-behavior: none;
 }
 
-.scene {
+button,
+a {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+.experience {
   position: relative;
   width: 100%;
   height: 100vh;
   height: 100svh;
   overflow: hidden;
-  perspective: 1400px;
-  touch-action: none;
+  isolation: isolate;
+  background:
+    radial-gradient(
+      ellipse at 50% 48%,
+      #263129 0%,
+      #171e19 34%,
+      #101411 72%
+    );
 }
 
-.sphere {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  transform-style: preserve-3d;
-}
+/* Kopfbereich */
 
-/* Jede Seite nimmt den gesamten Bildschirm ein */
-
-.panel {
+.topbar {
   position: absolute;
-  inset: 0;
+  z-index: 10;
+  top: 0;
+  left: 0;
   width: 100%;
-  height: 100%;
-  min-height: 100%;
-  box-sizing: border-box;
+  height: 86px;
+  padding: 0 5vw;
 
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
 
-  padding: clamp(24px, 5vw, 80px);
-  overflow-x: hidden;
-  overflow-y: auto;
-
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-
-  transform:
-    perspective(1400px)
-    rotateX(0deg)
-    rotateY(0deg)
-    scale(0.96);
-
-  transform-origin: center center;
-  transform-style: preserve-3d;
-  backface-visibility: hidden;
-
-  transition:
-    opacity 500ms ease,
-    transform 700ms cubic-bezier(.2, .75, .25, 1),
-    visibility 500ms;
+  border-bottom: 1px solid var(--line);
 }
 
-/* Nur die gerade aktive Seite ist sichtbar */
-
-.panel.active {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-  z-index: 2;
-
-  transform:
-    perspective(1400px)
-    rotateX(var(--tilt-x, 0deg))
-    rotateY(var(--tilt-y, 0deg))
-    scale(1);
+.logo {
+  color: var(--foreground);
+  text-decoration: none;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -1.5px;
 }
 
-/* Dezente Licht- und Schattenwirkung an den Rändern */
+.logo span {
+  color: var(--accent);
+}
 
-.panel::before {
+.navigation {
+  display: flex;
+  align-items: center;
+  gap: clamp(12px, 2.5vw, 36px);
+}
+
+.nav-link {
+  position: relative;
+  border: 0;
+  padding: 10px 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  transition: color 250ms ease;
+}
+
+.nav-link:hover,
+.nav-link.active {
+  color: var(--foreground);
+}
+
+.nav-link.active::after {
   content: "";
-  position: fixed;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2px;
+  height: 1px;
+  background: var(--accent);
+}
+
+.top-note,
+.footer {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+}
+
+/* Kugel */
+
+.globe-stage {
+  position: absolute;
+  inset: 86px 0 66px;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+}
+
+.globe-stage.dragging {
+  cursor: grabbing;
+}
+
+#globe {
+  position: absolute;
   inset: 0;
-  z-index: 5;
+}
+
+#globe canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+}
+
+/* Dezente Lichtwirkung */
+
+.globe-stage::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: 0;
   pointer-events: none;
 
-  background:
-    radial-gradient(
-      ellipse at center,
-      transparent 48%,
-      rgba(0, 0, 0, 0.12) 100%
-    );
-
-  opacity: 0;
-  transition: opacity 500ms ease;
-}
-
-.panel.active::before {
-  opacity: 1;
-}
-
-/* Während der Bewegung etwas mehr räumliche Wirkung */
-
-.scene.is-dragging .panel.active {
-  transition: none;
-}
-
-.scene.is-dragging .panel.active::before {
-  opacity: 1;
   background:
     radial-gradient(
       ellipse at center,
       transparent 35%,
-      rgba(0, 0, 0, 0.24) 100%
+      rgba(7, 10, 8, 0.24) 75%,
+      rgba(7, 10, 8, 0.7) 100%
     );
 }
 
-/* Keine sichtbare Kugel oder Umlaufbahnen */
+/* Bedienhinweis */
 
-.orbit,
-.scene-glow {
-  display: none !important;
+.interaction-hint {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  bottom: 32px;
+  transform: translateX(-50%);
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: rgba(233, 238, 232, 0.55);
+  pointer-events: none;
+  transition: opacity 400ms ease;
 }
 
-.home-art {
-  display: none !important;
+.interaction-hint.hidden {
+  opacity: 0;
 }
 
-/* Inhalte bleiben über dem Schatteneffekt */
-
-.panel > *,
-.panel .panel-inner {
-  position: relative;
-  z-index: 6;
+.hint-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(169, 185, 161, 0.7);
 }
 
-/* Navigation und Menü bleiben bedienbar */
+/* Bereichsanzeige */
 
-.topbar,
-.menu,
+.section-indicator {
+  position: absolute;
+  z-index: 5;
+  right: 5vw;
+  bottom: 32px;
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+#current-section {
+  color: var(--foreground);
+}
+
+.indicator-line {
+  width: 35px;
+  height: 1px;
+  background: var(--line);
+}
+
+/* Fusszeile */
+
 .footer {
-  position: relative;
-  z-index: 20;
+  position: absolute;
+  z-index: 10;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 66px;
+  padding: 0 5vw;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  border-top: 1px solid var(--line);
 }
 
-/* Kleine Bildschirme */
+.footer a {
+  color: var(--foreground);
+  text-decoration: none;
+  transition: color 200ms ease;
+}
+
+.footer a:hover {
+  color: var(--accent);
+}
+
+/* Mobile */
 
 @media (max-width: 700px) {
-  .panel {
+  .topbar {
+    height: 76px;
+    padding: 0 22px;
     align-items: flex-start;
-    padding: 90px 22px 50px;
+    justify-content: center;
+    flex-direction: column;
+    gap: 9px;
   }
 
-  .panel .panel-inner {
+  .logo {
+    font-size: 17px;
+  }
+
+  .navigation {
     width: 100%;
+    gap: 19px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .navigation::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-link {
+    flex: 0 0 auto;
+    font-size: 9px;
+    padding: 3px 0 8px;
+  }
+
+  .top-note {
+    display: none;
+  }
+
+  .globe-stage {
+    inset: 76px 0 58px;
+  }
+
+  .footer {
+    height: 58px;
+    padding: 0 20px;
+    font-size: 8px;
+  }
+
+  .footer-center {
+    display: none;
+  }
+
+  .interaction-hint {
+    bottom: 24px;
+    font-size: 8px;
+  }
+
+  .section-indicator {
+    right: 20px;
+    bottom: 24px;
+    font-size: 8px;
   }
 }
 
-/* Bewegungen reduzieren, wenn gewünscht */
-
 @media (prefers-reduced-motion: reduce) {
-  .panel,
-  .panel::before {
-    transition-duration: 0.01ms;
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }
