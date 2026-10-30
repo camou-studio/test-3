@@ -1,28 +1,27 @@
-import * as THREE from "three";
 
-/* CAMOU — image-textured 3D globe */
+import * as THREE from "three";
 
 const CONFIG = {
   radius: 3.2,
   desktopZoom: 8.7,
   mobileZoom: 8.4,
-  minZoom: 6.0,
+  minZoom: 6,
   maxZoom: 15,
   dragSpeed: 0.0052,
   friction: 0.94
 };
 
 const ASSETS = {
-  home: "assets/hero.jpg",
-  music: "assets/release.jpg",
-  visuals: "assets/visuals.jpg",
-  archive: "assets/archive.jpg",
-  contact: "assets/contact.jpg"
+  home: new URL("./assets/hero.jpg", import.meta.url).href,
+  music: new URL("./assets/release.jpg", import.meta.url).href,
+  visuals: new URL("./assets/visuals.jpg", import.meta.url).href,
+  archive: new URL("./assets/archive.jpg", import.meta.url).href,
+  contact: new URL("./assets/contact.jpg", import.meta.url).href
 };
 
 const LINKS = {
-  instagram: "", // Instagram-Profiladresse hier einsetzen
-  spotify: ""    // Spotify-Profiladresse hier einsetzen
+  instagram: "",
+  spotify: ""
 };
 
 const sections = [
@@ -95,13 +94,12 @@ const sectionNumber = document.getElementById("section-number");
 const hint = document.getElementById("hint");
 const navButtons = [...document.querySelectorAll(".nav-link")];
 
-const isMobile = matchMedia("(max-width: 700px)").matches;
+const isMobile = matchMedia("(max-width:700px)").matches;
 const defaultZoom = isMobile
   ? CONFIG.mobileZoom
   : CONFIG.desktopZoom;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color("#101411");
 
 const camera = new THREE.PerspectiveCamera(
   38,
@@ -119,10 +117,7 @@ const renderer = new THREE.WebGLRenderer({
 });
 
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(
-  container.clientWidth,
-  container.clientHeight
-);
+renderer.setSize(container.clientWidth, container.clientHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
@@ -142,19 +137,13 @@ scene.add(rimLight);
 const globeGroup = new THREE.Group();
 scene.add(globeGroup);
 
-/* Load all five original website images and paint them into one
-   equirectangular texture. Each image becomes one 72° longitude panel. */
-
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     const image = new Image();
-
     image.onload = () => resolve(image);
-
     image.onerror = () => reject(
       new Error(`Bild konnte nicht geladen werden: ${src}`)
     );
-
     image.src = src;
   });
 }
@@ -185,13 +174,9 @@ function drawPanel(ctx, section, image, centerX, panelW, canvasH) {
   ctx.rect(x, 0, panelW, canvasH);
   ctx.clip();
 
-  // Photo background: darkened enough for readable typography.
   drawCoverCrop(ctx, image, x, 0, panelW, canvasH);
 
-  const shade = ctx.createLinearGradient(
-    0, 0, 0, canvasH
-  );
-
+  const shade = ctx.createLinearGradient(0, 0, 0, canvasH);
   shade.addColorStop(0, "rgba(5,10,7,.45)");
   shade.addColorStop(.38, "rgba(5,10,7,.56)");
   shade.addColorStop(1, "rgba(5,10,7,.83)");
@@ -199,14 +184,9 @@ function drawPanel(ctx, section, image, centerX, panelW, canvasH) {
   ctx.fillStyle = shade;
   ctx.fillRect(x, 0, panelW, canvasH);
 
-  // Soft central glow and restrained grain.
   const glow = ctx.createRadialGradient(
-    centerX,
-    canvasH * .48,
-    30,
-    centerX,
-    canvasH * .48,
-    panelW * .8
+    centerX, canvasH * .48, 30,
+    centerX, canvasH * .48, panelW * .8
   );
 
   glow.addColorStop(0, "rgba(183,201,170,.16)");
@@ -223,59 +203,36 @@ function drawPanel(ctx, section, image, centerX, panelW, canvasH) {
   ctx.fillStyle = "rgba(232,239,226,.78)";
   ctx.font = "500 23px 'DM Mono', monospace";
 
-  ctx.fillText(
-    section.eyebrow,
-    contentX,
-    canvasH * .345,
-    maxTextW
-  );
+  ctx.fillText(section.eyebrow, contentX, canvasH * .345, maxTextW);
 
   ctx.fillStyle = "#f0f2eb";
-
   ctx.font = section.name === "MUSIC"
     ? "300 55px Manrope, Arial"
     : "300 72px Manrope, Arial";
 
-  let titleY = canvasH * .445;
+  const titleY = canvasH * .445;
 
   section.title.forEach((line, i) => {
-    ctx.fillText(
-      line,
-      contentX,
-      titleY + i * 86,
-      maxTextW
-    );
+    ctx.fillText(line, contentX, titleY + i * 86, maxTextW);
   });
 
-  const bodyStart =
-    titleY + section.title.length * 86 + 38;
+  const bodyStart = titleY + section.title.length * 86 + 38;
 
   ctx.fillStyle = "rgba(235,239,230,.86)";
   ctx.font = "300 27px Manrope, Arial";
 
   section.body.forEach((line, i) => {
-    ctx.fillText(
-      line,
-      contentX,
-      bodyStart + i * 43,
-      maxTextW
-    );
+    ctx.fillText(line, contentX, bodyStart + i * 43, maxTextW);
   });
 
   if (section.extra) {
-    const extraStart =
-      bodyStart + section.body.length * 43 + 48;
+    const extraStart = bodyStart + section.body.length * 43 + 48;
 
     ctx.fillStyle = "#c1d0b7";
     ctx.font = "500 18px 'DM Mono', monospace";
 
     section.extra.forEach((line, i) => {
-      ctx.fillText(
-        line,
-        contentX,
-        extraStart + i * 39,
-        maxTextW
-      );
+      ctx.fillText(line, contentX, extraStart + i * 39, maxTextW);
     });
   }
 
@@ -299,61 +256,54 @@ function drawPanel(ctx, section, image, centerX, panelW, canvasH) {
 }
 
 async function createGlobeTexture() {
-  const images = await Promise.all([
-    loadImage(ASSETS.home),
-    loadImage(ASSETS.music),
-    loadImage(ASSETS.visuals),
-    loadImage(ASSETS.archive),
-    loadImage(ASSETS.contact)
-  ]);
+  const images = await Promise.all(
+    sections.map(section => loadImage(section.image))
+  );
 
   const canvas = document.createElement("canvas");
   canvas.width = 4096;
   canvas.height = 2048;
 
   const ctx = canvas.getContext("2d");
-
   ctx.fillStyle = "#172019";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const panelW = canvas.width / sections.length;
 
-  // Home is centered at the front of the globe. The other four
-  // sections continue around the sphere in the chosen order.
   sections.forEach((section, index) => {
-    let center = canvas.width * (
-      0.5 + index / sections.length
-    );
+    // Korrektur: Home liegt auf der Vorderseite der Kugel.
+    const center = (
+      canvas.width * (0.25 + index / sections.length)
+    ) % canvas.width;
 
-    center %= canvas.width;
-
-    let x = center - panelW / 2;
+    const x = center - panelW / 2;
 
     drawPanel(
       ctx,
       section,
       images[index],
-      x + panelW / 2,
+      center,
       panelW,
       canvas.height
     );
 
-    // Copy wrapped panels across the texture seam.
     if (x < 0) {
       drawPanel(
         ctx,
         section,
         images[index],
-        x + canvas.width + panelW / 2,
+        center + canvas.width,
         panelW,
         canvas.height
       );
-    } else if (x + panelW > canvas.width) {
+    }
+
+    if (x + panelW > canvas.width) {
       drawPanel(
         ctx,
         section,
         images[index],
-        x - canvas.width + panelW / 2,
+        center - canvas.width,
         panelW,
         canvas.height
       );
@@ -361,20 +311,15 @@ async function createGlobeTexture() {
   });
 
   const texture = new THREE.CanvasTexture(canvas);
-
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy =
-    renderer.capabilities.getMaxAnisotropy();
-
+  texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
   texture.needsUpdate = true;
 
   return texture;
 }
 
 const globeGeometry = new THREE.SphereGeometry(
-  CONFIG.radius,
-  160,
-  112
+  CONFIG.radius, 160, 112
 );
 
 const globeMaterial = new THREE.MeshStandardMaterial({
@@ -383,19 +328,11 @@ const globeMaterial = new THREE.MeshStandardMaterial({
   metalness: 0.02
 });
 
-const globe = new THREE.Mesh(
-  globeGeometry,
-  globeMaterial
-);
-
+const globe = new THREE.Mesh(globeGeometry, globeMaterial);
 globeGroup.add(globe);
 
 const atmosphere = new THREE.Mesh(
-  new THREE.SphereGeometry(
-    CONFIG.radius * 1.012,
-    96,
-    64
-  ),
+  new THREE.SphereGeometry(CONFIG.radius * 1.012, 96, 64),
   new THREE.MeshBasicMaterial({
     color: 0xa9bd9f,
     transparent: true,
@@ -416,8 +353,6 @@ createGlobeTexture()
     sectionLabel.textContent = "BILDER NICHT GELADEN";
   });
 
-/* Camera zoom */
-
 function setZoom(value) {
   currentZoom = Math.max(
     CONFIG.minZoom,
@@ -427,30 +362,22 @@ function setZoom(value) {
   camera.position.z = currentZoom;
 }
 
-document
-  .getElementById("zoom-in")
-  .addEventListener("click", () => {
-    setZoom(currentZoom - .7);
-  });
+document.getElementById("zoom-in").addEventListener("click", () => {
+  setZoom(currentZoom - .7);
+});
 
-document
-  .getElementById("zoom-out")
-  .addEventListener("click", () => {
-    setZoom(currentZoom + .7);
-  });
+document.getElementById("zoom-out").addEventListener("click", () => {
+  setZoom(currentZoom + .7);
+});
 
-document
-  .getElementById("zoom-reset")
-  .addEventListener("click", () => {
-    setZoom(defaultZoom);
-  });
+document.getElementById("zoom-reset").addEventListener("click", () => {
+  setZoom(defaultZoom);
+});
 
 stage.addEventListener("wheel", event => {
   event.preventDefault();
   setZoom(currentZoom + event.deltaY * .008);
 }, { passive: false });
-
-/* Drag and pinch gestures */
 
 let rotationX = 0;
 let rotationY = 0;
@@ -462,15 +389,11 @@ let previousY = 0;
 let lastTime = 0;
 
 const pointers = new Map();
-
 let pinchDistance = 0;
 let pinchZoom = currentZoom;
 
 function distance(a, b) {
-  return Math.hypot(
-    a.x - b.x,
-    a.y - b.y
-  );
+  return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
 stage.addEventListener("pointerdown", event => {
@@ -483,13 +406,10 @@ stage.addEventListener("pointerdown", event => {
 
   if (pointers.size === 1) {
     isDragging = true;
-
     previousX = event.clientX;
     previousY = event.clientY;
     lastTime = performance.now();
-
     velocityX = velocityY = 0;
-
     stage.classList.add("dragging");
     hint.classList.add("hidden");
 
@@ -498,7 +418,6 @@ stage.addEventListener("pointerdown", event => {
     stage.classList.remove("dragging");
 
     const pts = [...pointers.values()];
-
     pinchDistance = distance(pts[0], pts[1]);
     pinchZoom = currentZoom;
   }
@@ -530,7 +449,6 @@ stage.addEventListener("pointermove", event => {
 
   const dx = event.clientX - previousX;
   const dy = event.clientY - previousY;
-
   const factor = Math.min(dt / 16, 2);
 
   const mx = dx * CONFIG.dragSpeed;
@@ -545,8 +463,6 @@ stage.addEventListener("pointermove", event => {
   previousX = event.clientX;
   previousY = event.clientY;
   lastTime = now;
-
-  updateIndicator();
 });
 
 function releasePointer(event) {
@@ -564,7 +480,6 @@ function releasePointer(event) {
     lastTime = performance.now();
 
     velocityX = velocityY = 0;
-
     isDragging = true;
     stage.classList.add("dragging");
   }
@@ -574,22 +489,21 @@ stage.addEventListener("pointerup", releasePointer);
 stage.addEventListener("pointercancel", releasePointer);
 stage.addEventListener("lostpointercapture", releasePointer);
 
-/* Section navigation */
-
 const sectionStep = (Math.PI * 2) / sections.length;
 
-let baseRotation = 0;
 let targetRotationY = 0;
+let targetRotationX = 0;
 let menuAnimating = false;
 
 function currentIndex() {
-  const raw = Math.round(
-    (baseRotation - rotationY) / sectionStep
+  // Berechnet den sichtbaren Abschnitt unabhängig von der Anzahl
+  // der bereits erfolgten vollständigen Umdrehungen.
+  const normalized = THREE.MathUtils.euclideanModulo(
+    -rotationY,
+    Math.PI * 2
   );
 
-  return (
-    (raw % sections.length) + sections.length
-  ) % sections.length;
+  return Math.round(normalized / sectionStep) % sections.length;
 }
 
 function updateIndicator() {
@@ -606,26 +520,27 @@ function updateIndicator() {
 }
 
 function goToSection(index) {
-  const i = (
-    (index % sections.length) + sections.length
-  ) % sections.length;
+  const i = THREE.MathUtils.euclideanModulo(index, sections.length);
 
-  let destination =
-    baseRotation - i * sectionStep;
+  // Die Kugel wird für die Navigation zunächst aufrecht gestellt.
+  targetRotationX = 0;
 
+  // Zielwinkel direkt aus dem festen Abschnittsraster bestimmen.
+  targetRotationY = -i * sectionStep;
+
+  // Den kürzesten Drehweg auswählen.
   const full = Math.PI * 2;
 
-  while (destination - rotationY > Math.PI) {
-    destination -= full;
+  while (targetRotationY - rotationY > Math.PI) {
+    targetRotationY -= full;
   }
 
-  while (destination - rotationY < -Math.PI) {
-    destination += full;
+  while (targetRotationY - rotationY < -Math.PI) {
+    targetRotationY += full;
   }
 
-  targetRotationY = destination;
-
-  velocityX = velocityY = 0;
+  velocityX = 0;
+  velocityY = 0;
   menuAnimating = true;
 }
 
@@ -635,14 +550,10 @@ navButtons.forEach(button => {
   });
 });
 
-document
-  .getElementById("logo")
-  .addEventListener("click", event => {
-    event.preventDefault();
-    goToSection(0);
-  });
-
-/* Social links: fill in your real profile URLs above. */
+document.getElementById("logo").addEventListener("click", event => {
+  event.preventDefault();
+  goToSection(0);
+});
 
 for (const [id, url] of [
   ["instagram-link", LINKS.instagram],
@@ -652,16 +563,13 @@ for (const [id, url] of [
 
   if (url) {
     link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
   } else {
     link.href = "#";
-
-    link.addEventListener("click", e => {
-      e.preventDefault();
-    });
+    link.addEventListener("click", event => event.preventDefault());
   }
 }
-
-/* Keyboard controls */
 
 window.addEventListener("keydown", event => {
   if (event.key === "ArrowRight") {
@@ -693,18 +601,22 @@ window.addEventListener("keydown", event => {
   }
 });
 
-/* Render loop */
-
 function animate() {
   requestAnimationFrame(animate);
 
   if (!isDragging && menuAnimating) {
-    const delta = targetRotationY - rotationY;
+    const deltaY = targetRotationY - rotationY;
+    const deltaX = targetRotationX - rotationX;
 
-    rotationY += delta * .055;
+    rotationY += deltaY * .055;
+    rotationX += deltaX * .055;
 
-    if (Math.abs(delta) < .001) {
+    if (
+      Math.abs(deltaY) < .001 &&
+      Math.abs(deltaX) < .001
+    ) {
       rotationY = targetRotationY;
+      rotationX = targetRotationX;
       menuAnimating = false;
     }
 
@@ -715,26 +627,15 @@ function animate() {
     velocityY *= CONFIG.friction;
     velocityX *= CONFIG.friction;
 
-    if (Math.abs(velocityY) < .00004) {
-      velocityY = 0;
-    }
-
-    if (Math.abs(velocityX) < .00004) {
-      velocityX = 0;
-    }
+    if (Math.abs(velocityY) < .00004) velocityY = 0;
+    if (Math.abs(velocityX) < .00004) velocityX = 0;
   }
 
-  globeGroup.rotation.set(
-    rotationX,
-    rotationY,
-    0
-  );
+  globeGroup.rotation.set(rotationX, rotationY, 0);
 
   renderer.render(scene, camera);
   updateIndicator();
 }
-
-animate();
 
 function resize() {
   const w = container.clientWidth;
@@ -744,12 +645,12 @@ function resize() {
   camera.updateProjectionMatrix();
 
   renderer.setSize(w, h);
-  renderer.setPixelRatio(
-    Math.min(devicePixelRatio, 2)
-  );
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 }
 
 window.addEventListener("resize", resize);
 
 setZoom(defaultZoom);
 updateIndicator();
+animate();
+
