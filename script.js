@@ -7,14 +7,10 @@ import * as THREE from "three";
 
 const CONFIG = {
   radius: 3.2,
-
-  // Größere Kugel in der Standardansicht
   desktopZoom: 8.7,
   mobileZoom: 8.4,
-
   minZoom: 6.0,
   maxZoom: 17,
-
   dragSpeed: 0.0052,
   friction: 0.94
 };
@@ -52,7 +48,6 @@ const sections = [
     ],
     image: ASSETS.home
   },
-
   {
     name: "MUSIC",
     poleLetter: "a",
@@ -69,7 +64,6 @@ const sections = [
       "SPOTIFY / APPLE MUSIC / YOUTUBE"
     ]
   },
-
   {
     name: "VISUALS",
     poleLetter: "m",
@@ -81,7 +75,6 @@ const sections = [
     ],
     image: ASSETS.visuals
   },
-
   {
     name: "ARCHIVE",
     poleLetter: "o",
@@ -100,7 +93,6 @@ const sections = [
       "notizen"
     ]
   },
-
   {
     name: "CONTACT",
     poleLetter: "u",
@@ -216,41 +208,27 @@ scene.add(globeGroup);
 ========================================= */
 
 function loadImage(src) {
-
   return new Promise((resolve, reject) => {
-
     const image = new Image();
 
     image.onload = () => resolve(image);
 
     image.onerror = () => {
-      reject(
-        new Error(
-          `Bild konnte nicht geladen werden: ${src}`
-        )
-      );
+      reject(new Error(
+        `Bild konnte nicht geladen werden: ${src}`
+      ));
     };
 
     image.decoding = "async";
     image.src = src;
-
   });
-
 }
 
 /* =========================================
    BILDER ZUSCHNEIDEN
 ========================================= */
 
-function drawCoverCrop(
-  ctx,
-  image,
-  x,
-  y,
-  w,
-  h
-) {
-
+function drawCoverCrop(ctx, image, x, y, w, h) {
   const scale = Math.max(
     w / image.width,
     h / image.height
@@ -273,7 +251,6 @@ function drawCoverCrop(
     w,
     h
   );
-
 }
 
 /* =========================================
@@ -288,7 +265,6 @@ function drawPanel(
   panelW,
   canvasH
 ) {
-
   const x = centerX - panelW / 2;
 
   ctx.save();
@@ -311,13 +287,7 @@ function drawPanel(
   background.addColorStop(1, "#111813");
 
   ctx.fillStyle = background;
-
-  ctx.fillRect(
-    x,
-    0,
-    panelW,
-    canvasH
-  );
+  ctx.fillRect(x, 0, panelW, canvasH);
 
   /* 2. DEZENTER LICHTSCHEIN */
 
@@ -341,21 +311,15 @@ function drawPanel(
   );
 
   ctx.fillStyle = glow;
+  ctx.fillRect(x, 0, panelW, canvasH);
 
-  ctx.fillRect(
-    x,
-    0,
-    panelW,
-    canvasH
-  );
+  /* 3. ZENTRIERTER TEXTBEREICH */
 
-  const pad = panelW * 0.105;
-  const contentX = x + pad;
-  const maxTextW = panelW - pad * 2;
+  const contentW = panelW * 0.76;
+  const contentX = centerX - contentW / 2;
+  const maxTextW = contentW;
 
-  /* 3. CAMOU-BUCHSTABE
-     Ein Buchstabe pro Themenbereich.
-  */
+  /* 4. CAMOU-BUCHSTABE */
 
   ctx.save();
 
@@ -373,9 +337,9 @@ function drawPanel(
 
   ctx.restore();
 
-  /* 4. KLEINE KATEGORIEZEILE */
+  /* 5. KATEGORIEZEILE */
 
-  ctx.textAlign = "left";
+  ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
 
   ctx.fillStyle = "rgba(232,239,226,0.65)";
@@ -383,12 +347,12 @@ function drawPanel(
 
   ctx.fillText(
     section.eyebrow,
-    contentX,
+    centerX,
     canvasH * 0.24,
     maxTextW
   );
 
-  /* 5. GROSSE ÜBERSCHRIFT */
+  /* 6. GROSSE ÜBERSCHRIFT */
 
   ctx.fillStyle = "#f0f2eb";
 
@@ -400,17 +364,15 @@ function drawPanel(
   const titleGap = 76;
 
   section.title.forEach((line, i) => {
-
     ctx.fillText(
       line,
-      contentX,
+      centerX,
       titleY + i * titleGap,
       maxTextW
     );
-
   });
 
-  /* 6. FLIESSTEXT */
+  /* 7. FLIESSTEXT */
 
   const bodyStart =
     titleY +
@@ -421,20 +383,17 @@ function drawPanel(
   ctx.font = "300 22px Manrope, Arial";
 
   section.body.forEach((line, i) => {
-
     ctx.fillText(
       line,
-      contentX,
+      centerX,
       bodyStart + i * 43,
       maxTextW
     );
-
   });
 
-  /* 7. ZUSATZINFORMATIONEN */
+  /* 8. ZUSATZINFORMATIONEN */
 
   if (section.extra) {
-
     const extraStart =
       bodyStart +
       section.body.length * 43 +
@@ -444,28 +403,24 @@ function drawPanel(
     ctx.font = "500 18px 'DM Mono', monospace";
 
     section.extra.forEach((line, i) => {
-
       ctx.fillText(
         line,
-        contentX,
+        centerX,
         extraStart + i * 39,
         maxTextW
       );
-
     });
-
   }
 
-  /* 8. BILDFENSTER
-     Das Bild erscheint nur innerhalb
-     dieses Fensters.
-  */
+  /* 9. BILDFENSTER */
 
   const imageW = panelW * 0.48;
   const imageH = canvasH * 0.19;
 
   const imageX = centerX - imageW / 2;
-  const imageY = canvasH * 0.53;
+
+  // Nur ein kleines Stück höher
+  const imageY = canvasH * 0.515;
 
   ctx.save();
 
@@ -483,14 +438,7 @@ function drawPanel(
   ctx.save();
 
   ctx.beginPath();
-
-  ctx.rect(
-    imageX,
-    imageY,
-    imageW,
-    imageH
-  );
-
+  ctx.rect(imageX, imageY, imageW, imageH);
   ctx.clip();
 
   // Bild ausschließlich im Fenster zeichnen
@@ -518,7 +466,7 @@ function drawPanel(
 
   ctx.restore();
 
-  /* 9. UNTERE LINIE */
+  /* 10. UNTERE LINIE */
 
   ctx.strokeStyle = "rgba(226,235,220,0.35)";
   ctx.lineWidth = 2;
@@ -526,30 +474,31 @@ function drawPanel(
   ctx.beginPath();
 
   ctx.moveTo(
-    contentX,
+    centerX - contentW / 2,
     canvasH * 0.88
   );
 
   ctx.lineTo(
-    contentX + maxTextW,
+    centerX + contentW / 2,
     canvasH * 0.88
   );
 
   ctx.stroke();
 
-  /* 10. SEITENNUMMER */
+  /* 11. SEITENNUMMER */
 
   ctx.fillStyle = "rgba(232,239,226,0.62)";
   ctx.font = "19px 'DM Mono', monospace";
 
+  ctx.textAlign = "center";
+
   ctx.fillText(
     `${String(sections.indexOf(section) + 1).padStart(2, "0")} / 05`,
-    contentX,
+    centerX,
     canvasH * 0.92
   );
 
   ctx.restore();
-
 }
 
 /* =========================================
@@ -557,7 +506,6 @@ function drawPanel(
 ========================================= */
 
 async function createGlobeTexture() {
-
   const images = await Promise.all([
     loadImage(ASSETS.home),
     loadImage(ASSETS.music),
@@ -574,18 +522,11 @@ async function createGlobeTexture() {
   const ctx = canvas.getContext("2d");
 
   ctx.fillStyle = "#172019";
-
-  ctx.fillRect(
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const panelW = canvas.width / sections.length;
 
   sections.forEach((section, index) => {
-
     const center =
       canvas.width * (0.25 + index / sections.length);
 
@@ -602,7 +543,6 @@ async function createGlobeTexture() {
 
     // Übergang am Rand der Textur
     if (x < 0) {
-
       drawPanel(
         ctx,
         section,
@@ -611,9 +551,7 @@ async function createGlobeTexture() {
         panelW,
         canvas.height
       );
-
     } else if (x + panelW > canvas.width) {
-
       drawPanel(
         ctx,
         section,
@@ -622,9 +560,7 @@ async function createGlobeTexture() {
         panelW,
         canvas.height
       );
-
     }
-
   });
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -637,7 +573,6 @@ async function createGlobeTexture() {
   texture.needsUpdate = true;
 
   return texture;
-
 }
 
 /* =========================================
@@ -671,7 +606,6 @@ const atmosphere = new THREE.Mesh(
     96,
     64
   ),
-
   new THREE.MeshBasicMaterial({
     color: 0xa9bd9f,
     transparent: true,
@@ -687,27 +621,21 @@ globeGroup.add(atmosphere);
 ========================================= */
 
 createGlobeTexture()
-
   .then(texture => {
-
     globeMaterial.map = texture;
     globeMaterial.needsUpdate = true;
 
     console.info(
       "CAMOU: Alle fünf Bereiche wurden geladen."
     );
-
   })
-
   .catch(error => {
-
     console.error(
       "CAMOU: Die Bildtextur konnte nicht erstellt werden.",
       error
     );
 
     sectionLabel.textContent = "BILDER NICHT GELADEN";
-
   });
 
 /* =========================================
@@ -715,50 +643,37 @@ createGlobeTexture()
 ========================================= */
 
 function setZoom(value) {
-
   currentZoom = Math.max(
     CONFIG.minZoom,
     Math.min(CONFIG.maxZoom, value)
   );
 
   camera.position.z = currentZoom;
-
 }
 
 document
   .getElementById("zoom-in")
   .addEventListener("click", () => {
-
     setZoom(currentZoom - 0.7);
-
   });
 
 document
   .getElementById("zoom-out")
   .addEventListener("click", () => {
-
     setZoom(currentZoom + 0.7);
-
   });
 
 document
   .getElementById("zoom-reset")
   .addEventListener("click", () => {
-
     setZoom(defaultZoom);
-
   });
 
 stage.addEventListener(
   "wheel",
   event => {
-
     event.preventDefault();
-
-    setZoom(
-      currentZoom + event.deltaY * 0.008
-    );
-
+    setZoom(currentZoom + event.deltaY * 0.008);
   },
   { passive: false }
 );
@@ -785,16 +700,13 @@ let pinchDistance = 0;
 let pinchZoom = currentZoom;
 
 function distance(a, b) {
-
   return Math.hypot(
     a.x - b.x,
     a.y - b.y
   );
-
 }
 
 stage.addEventListener("pointerdown", event => {
-
   pointers.set(event.pointerId, {
     x: event.clientX,
     y: event.clientY
@@ -803,7 +715,6 @@ stage.addEventListener("pointerdown", event => {
   stage.setPointerCapture(event.pointerId);
 
   if (pointers.size === 1) {
-
     isDragging = true;
 
     previousX = event.clientX;
@@ -816,9 +727,7 @@ stage.addEventListener("pointerdown", event => {
 
     stage.classList.add("dragging");
     hint.classList.add("hidden");
-
   } else if (pointers.size === 2) {
-
     isDragging = false;
 
     stage.classList.remove("dragging");
@@ -831,13 +740,10 @@ stage.addEventListener("pointerdown", event => {
     );
 
     pinchZoom = currentZoom;
-
   }
-
 });
 
 stage.addEventListener("pointermove", event => {
-
   if (!pointers.has(event.pointerId)) return;
 
   pointers.set(event.pointerId, {
@@ -847,7 +753,6 @@ stage.addEventListener("pointermove", event => {
 
   // Zwei Finger: Zoom
   if (pointers.size >= 2) {
-
     const pts = [...pointers.values()];
 
     const d = distance(
@@ -856,15 +761,12 @@ stage.addEventListener("pointermove", event => {
     );
 
     if (pinchDistance > 0) {
-
       setZoom(
         pinchZoom / (d / pinchDistance)
       );
-
     }
 
     return;
-
   }
 
   if (!isDragging) return;
@@ -899,21 +801,15 @@ stage.addEventListener("pointermove", event => {
   lastTime = now;
 
   updateIndicator();
-
 });
 
 function releasePointer(event) {
-
   pointers.delete(event.pointerId);
 
   if (pointers.size === 0) {
-
     isDragging = false;
-
     stage.classList.remove("dragging");
-
   } else if (pointers.size === 1) {
-
     const p = [...pointers.values()][0];
 
     previousX = p.x;
@@ -927,9 +823,7 @@ function releasePointer(event) {
     isDragging = true;
 
     stage.classList.add("dragging");
-
   }
-
 }
 
 stage.addEventListener("pointerup", releasePointer);
@@ -947,7 +841,6 @@ let targetRotationY = 0;
 let menuAnimating = false;
 
 function currentIndex() {
-
   const raw = Math.round(
     -rotationY / sectionStep
   );
@@ -956,11 +849,9 @@ function currentIndex() {
     (raw % sections.length) +
     sections.length
   ) % sections.length;
-
 }
 
 function updateIndicator() {
-
   const index = currentIndex();
 
   sectionLabel.textContent =
@@ -970,18 +861,14 @@ function updateIndicator() {
     `${String(index + 1).padStart(2, "0")} / 05`;
 
   navButtons.forEach((button, i) => {
-
     button.classList.toggle(
       "active",
       i === index
     );
-
   });
-
 }
 
 function goToSection(index) {
-
   const i =
     ((index % sections.length) + sections.length) %
     sections.length;
@@ -1011,29 +898,21 @@ function goToSection(index) {
 
   targetRotationY = destination;
   menuAnimating = true;
-
 }
 
 navButtons.forEach(button => {
-
   button.addEventListener("click", () => {
-
     goToSection(
       Number(button.dataset.section)
     );
-
   });
-
 });
 
 document
   .getElementById("logo")
   .addEventListener("click", event => {
-
     event.preventDefault();
-
     goToSection(0);
-
   });
 
 /* =========================================
@@ -1044,25 +923,17 @@ for (const [id, url] of [
   ["instagram-link", LINKS.instagram],
   ["spotify-link", LINKS.spotify]
 ]) {
-
   const link = document.getElementById(id);
 
   if (url) {
-
     link.href = url;
-
   } else {
-
     link.href = "#";
 
     link.addEventListener("click", event => {
-
       event.preventDefault();
-
     });
-
   }
-
 }
 
 /* =========================================
@@ -1070,7 +941,6 @@ for (const [id, url] of [
 ========================================= */
 
 window.addEventListener("keydown", event => {
-
   if (event.key === "ArrowRight") {
     goToSection(currentIndex() + 1);
   }
@@ -1098,7 +968,6 @@ window.addEventListener("keydown", event => {
   if (event.key === "0") {
     setZoom(defaultZoom);
   }
-
 });
 
 /* =========================================
@@ -1106,25 +975,19 @@ window.addEventListener("keydown", event => {
 ========================================= */
 
 function animate() {
-
   requestAnimationFrame(animate);
 
   if (!isDragging && menuAnimating) {
-
     const delta =
       targetRotationY - rotationY;
 
     rotationY += delta * 0.055;
 
     if (Math.abs(delta) < 0.001) {
-
       rotationY = targetRotationY;
       menuAnimating = false;
-
     }
-
   } else if (!isDragging) {
-
     rotationY += velocityY;
     rotationX += velocityX;
 
@@ -1138,7 +1001,6 @@ function animate() {
     if (Math.abs(velocityX) < 0.00004) {
       velocityX = 0;
     }
-
   }
 
   globeGroup.rotation.set(
@@ -1150,7 +1012,6 @@ function animate() {
   renderer.render(scene, camera);
 
   updateIndicator();
-
 }
 
 animate();
@@ -1160,7 +1021,6 @@ animate();
 ========================================= */
 
 function resize() {
-
   const w = container.clientWidth;
   const h = container.clientHeight;
 
@@ -1172,7 +1032,6 @@ function resize() {
   renderer.setPixelRatio(
     Math.min(window.devicePixelRatio, 2)
   );
-
 }
 
 window.addEventListener("resize", resize);
