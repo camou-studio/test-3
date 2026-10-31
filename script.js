@@ -7,7 +7,7 @@ import * as THREE from "three";
 
 const CONFIG = {
   radius: 3.2,
-  desktopZoom: 8.7,
+  desktopZoom: 7.8,
   mobileZoom: 8.4,
   minZoom: 6.0,
   maxZoom: 17,
