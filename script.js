@@ -217,6 +217,8 @@ homeVideo.volume = 1;
 homeVideo.playsInline = true;
 homeVideo.preload = "auto";
 
+// Unterscheidung zwischen gestartet und gerade laufend
+let homeVideoStarted = false;
 let homeVideoPlaying = false;
 let homeVideoStarting = false;
 
@@ -246,7 +248,7 @@ function loadImage(src) {
 }
 
 /* =========================================
-   BILDER ZUSCHNEIDEN
+   BILDER UND VIDEO ZUSCHNEIDEN
 ========================================= */
 
 function drawCoverCrop(ctx, image, x, y, w, h) {
@@ -518,10 +520,10 @@ function drawPanel(
   ctx.rect(imageX, imageY, imageW, imageH);
   ctx.clip();
 
-  // Video oder bisheriges Vorschaubild
+  // Home: Video zeigen, sobald es einmal gestartet wurde
   if (
     section.name === "HOME" &&
-    homeVideoPlaying &&
+    homeVideoStarted &&
     homeVideo.readyState >= 2
   ) {
     drawCoverCrop(
@@ -532,7 +534,18 @@ function drawPanel(
       imageW,
       imageH
     );
+
+    // Play-Button im pausierten Zustand
+    if (homeVideo.paused) {
+      drawPlayButton(
+        ctx,
+        centerX,
+        imageY + imageH / 2,
+        48
+      );
+    }
   } else {
+    // Vorschaubild vor dem ersten Start
     drawCoverCrop(
       ctx,
       image,
@@ -542,7 +555,6 @@ function drawPanel(
       imageH
     );
 
-    // Play-Button nur auf Home
     if (section.name === "HOME") {
       drawPlayButton(
         ctx,
@@ -609,7 +621,7 @@ function drawPanel(
 
 function updateHomeVideoFrame() {
   if (
-    !homeVideoPlaying ||
+    !homeVideoStarted ||
     !globeCanvas ||
     !globeContext ||
     !globeTexture ||
@@ -642,6 +654,7 @@ function updateHomeVideoFrame() {
 
   globeContext.clip();
 
+  // Aktuelles Videobild zeichnen
   drawCoverCrop(
     globeContext,
     homeVideo,
@@ -652,6 +665,16 @@ function updateHomeVideoFrame() {
   );
 
   globeContext.restore();
+
+  // Play-Button wieder einblenden, wenn pausiert
+  if (homeVideo.paused) {
+    drawPlayButton(
+      globeContext,
+      homeCenter,
+      imageY + imageH / 2,
+      48
+    );
+  }
 
   globeTexture.needsUpdate = true;
 }
@@ -799,7 +822,7 @@ createGlobeTexture()
   });
 
 /* =========================================
-   VIDEO-PLAY-BUTTON ERKENNEN
+   VIDEO: STARTEN, PAUSIEREN, FORTSETZEN
 ========================================= */
 
 const raycaster = new THREE.Raycaster();
@@ -820,7 +843,7 @@ function startHomeVideoFromClick(event) {
   // Ziehen soll weiterhin nur die Kugel bewegen
   if (movement > 7) return;
 
-  if (homeVideoPlaying || homeVideoStarting) return;
+  if (homeVideoStarting) return;
 
   const rect = renderer.domElement.getBoundingClientRect();
 
@@ -855,6 +878,55 @@ function startHomeVideoFromClick(event) {
   const textureX = uv.x * canvasW;
   const textureY = (1 - uv.y) * canvasH;
 
+  const isInsideImage =
+    textureX >= imageX &&
+    textureX <= imageX + imageW &&
+    textureY >= imageY &&
+    textureY <= imageY + imageH;
+
+  // Klick muss innerhalb des Home-Videofensters liegen
+  if (!isInsideImage) return;
+
+  /* VIDEO WURDE BEREITS GESTARTET */
+
+  if (homeVideoStarted) {
+    if (homeVideo.paused) {
+      // Pausiertes Video fortsetzen
+      homeVideoStarting = true;
+
+      homeVideo.play()
+        .then(() => {
+          homeVideoPlaying = true;
+          homeVideoStarting = false;
+
+          updateHomeVideoFrame();
+
+          console.info("CAMOU: Home-Video fortgesetzt.");
+        })
+        .catch(error => {
+          homeVideoStarting = false;
+
+          console.error(
+            "CAMOU: Das Video konnte nicht fortgesetzt werden.",
+            error
+          );
+        });
+    } else {
+      // Laufendes Video pausieren
+      homeVideo.pause();
+
+      homeVideoPlaying = false;
+
+      updateHomeVideoFrame();
+
+      console.info("CAMOU: Home-Video pausiert.");
+    }
+
+    return;
+  }
+
+  /* ERSTER START: PLAY-BUTTON ERFORDERLICH */
+
   const buttonX = homeCenter;
   const buttonY = imageY + imageH / 2;
   const buttonRadius = 30;
@@ -865,13 +937,7 @@ function startHomeVideoFromClick(event) {
       textureY - buttonY
     ) <= buttonRadius;
 
-  const isInsideImage =
-    textureX >= imageX &&
-    textureX <= imageX + imageW &&
-    textureY >= imageY &&
-    textureY <= imageY + imageH;
-
-  if (!isInsideButton || !isInsideImage) return;
+  if (!isInsideButton) return;
 
   homeVideoStarting = true;
 
@@ -880,6 +946,7 @@ function startHomeVideoFromClick(event) {
 
   homeVideo.play()
     .then(() => {
+      homeVideoStarted = true;
       homeVideoPlaying = true;
       homeVideoStarting = false;
 
@@ -1281,8 +1348,8 @@ function animate() {
     0
   );
 
-  // Laufendes Video in die Kugeltextur zeichnen
-  if (homeVideoPlaying) {
+  // Video nur aktualisieren, solange es tatsächlich läuft
+  if (homeVideoStarted && !homeVideo.paused) {
     updateHomeVideoFrame();
   }
 
