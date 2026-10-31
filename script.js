@@ -7,7 +7,7 @@ import * as THREE from "three";
 
 const CONFIG = {
   radius: 3.2,
-  desktopZoom: 8.0,
+  desktopZoom: 8.2,
   mobileZoom: 8.4,
   minZoom: 6.0,
   maxZoom: 17,
@@ -16,11 +16,12 @@ const CONFIG = {
 };
 
 /* =========================================
-   BILDER
+   BILDER UND VIDEO
 ========================================= */
 
 const ASSETS = {
   home: new URL("./assets/hero.jpg", import.meta.url).href,
+  homeVideo: new URL("./assets/test.webm", import.meta.url).href,
   music: new URL("./assets/release.jpg", import.meta.url).href,
   visuals: new URL("./assets/visuals.jpg", import.meta.url).href,
   archive: new URL("./assets/archive.jpg", import.meta.url).href,
@@ -204,6 +205,26 @@ const globeGroup = new THREE.Group();
 scene.add(globeGroup);
 
 /* =========================================
+   HOME-VIDEO
+========================================= */
+
+const homeVideo = document.createElement("video");
+
+homeVideo.src = ASSETS.homeVideo;
+homeVideo.loop = true;
+homeVideo.muted = false;
+homeVideo.volume = 1;
+homeVideo.playsInline = true;
+homeVideo.preload = "auto";
+
+let homeVideoPlaying = false;
+let homeVideoStarting = false;
+
+let globeCanvas = null;
+let globeContext = null;
+let globeTexture = null;
+
+/* =========================================
    BILDER LADEN
 ========================================= */
 
@@ -229,16 +250,28 @@ function loadImage(src) {
 ========================================= */
 
 function drawCoverCrop(ctx, image, x, y, w, h) {
+  const sourceWidth =
+    image.videoWidth ||
+    image.naturalWidth ||
+    image.width;
+
+  const sourceHeight =
+    image.videoHeight ||
+    image.naturalHeight ||
+    image.height;
+
+  if (!sourceWidth || !sourceHeight) return;
+
   const scale = Math.max(
-    w / image.width,
-    h / image.height
+    w / sourceWidth,
+    h / sourceHeight
   );
 
   const sw = w / scale;
   const sh = h / scale;
 
-  const sx = (image.width - sw) / 2;
-  const sy = (image.height - sh) / 2;
+  const sx = (sourceWidth - sw) / 2;
+  const sy = (sourceHeight - sh) / 2;
 
   ctx.drawImage(
     image,
@@ -251,6 +284,53 @@ function drawCoverCrop(ctx, image, x, y, w, h) {
     w,
     h
   );
+}
+
+/* =========================================
+   PLAY-BUTTON ZEICHNEN
+========================================= */
+
+function drawPlayButton(ctx, centerX, centerY, size) {
+  const radius = size * 0.5;
+
+  ctx.save();
+
+  // Dezenter dunkler Kreis
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+
+  ctx.fillStyle = "rgba(8, 13, 10, 0.72)";
+  ctx.fill();
+
+  // Feiner heller Rand
+  ctx.strokeStyle = "rgba(240, 245, 235, 0.85)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Play-Dreieck
+  ctx.beginPath();
+
+  ctx.moveTo(
+    centerX - radius * 0.22,
+    centerY - radius * 0.38
+  );
+
+  ctx.lineTo(
+    centerX + radius * 0.42,
+    centerY
+  );
+
+  ctx.lineTo(
+    centerX - radius * 0.22,
+    centerY + radius * 0.38
+  );
+
+  ctx.closePath();
+
+  ctx.fillStyle = "#f0f2eb";
+  ctx.fill();
+
+  ctx.restore();
 }
 
 /* =========================================
@@ -316,7 +396,6 @@ function drawPanel(
   /* 3. ZENTRIERTER TEXTBEREICH */
 
   const contentW = panelW * 0.76;
-  const contentX = centerX - contentW / 2;
   const maxTextW = contentW;
 
   /* 4. CAMOU-BUCHSTABE */
@@ -414,13 +493,11 @@ function drawPanel(
 
   /* 9. BILDFENSTER */
 
-  const imageW = panelW * 0.48;
+  const imageW = panelW * 0.56;
   const imageH = canvasH * 0.19;
 
   const imageX = centerX - imageW / 2;
-
-  // Nur ein kleines Stück höher
-  const imageY = canvasH * 0.515;
+  const imageY = canvasH * 0.475;
 
   ctx.save();
 
@@ -441,15 +518,40 @@ function drawPanel(
   ctx.rect(imageX, imageY, imageW, imageH);
   ctx.clip();
 
-  // Bild ausschließlich im Fenster zeichnen
-  drawCoverCrop(
-    ctx,
-    image,
-    imageX,
-    imageY,
-    imageW,
-    imageH
-  );
+  // Video oder bisheriges Vorschaubild
+  if (
+    section.name === "HOME" &&
+    homeVideoPlaying &&
+    homeVideo.readyState >= 2
+  ) {
+    drawCoverCrop(
+      ctx,
+      homeVideo,
+      imageX,
+      imageY,
+      imageW,
+      imageH
+    );
+  } else {
+    drawCoverCrop(
+      ctx,
+      image,
+      imageX,
+      imageY,
+      imageW,
+      imageH
+    );
+
+    // Play-Button nur auf Home
+    if (section.name === "HOME") {
+      drawPlayButton(
+        ctx,
+        centerX,
+        imageY + imageH / 2,
+        48
+      );
+    }
+  }
 
   ctx.restore();
 
@@ -502,6 +604,59 @@ function drawPanel(
 }
 
 /* =========================================
+   VIDEO IM HOME-FENSTER AKTUALISIEREN
+========================================= */
+
+function updateHomeVideoFrame() {
+  if (
+    !homeVideoPlaying ||
+    !globeCanvas ||
+    !globeContext ||
+    !globeTexture ||
+    homeVideo.readyState < 2
+  ) {
+    return;
+  }
+
+  const canvasW = globeCanvas.width;
+  const canvasH = globeCanvas.height;
+
+  const panelW = canvasW / sections.length;
+  const homeCenter = canvasW * 0.25;
+
+  const imageW = panelW * 0.56;
+  const imageH = canvasH * 0.19;
+
+  const imageX = homeCenter - imageW / 2;
+  const imageY = canvasH * 0.475;
+
+  globeContext.save();
+
+  globeContext.beginPath();
+  globeContext.rect(
+    imageX,
+    imageY,
+    imageW,
+    imageH
+  );
+
+  globeContext.clip();
+
+  drawCoverCrop(
+    globeContext,
+    homeVideo,
+    imageX,
+    imageY,
+    imageW,
+    imageH
+  );
+
+  globeContext.restore();
+
+  globeTexture.needsUpdate = true;
+}
+
+/* =========================================
    KUGELTEXTUR ERSTELLEN
 ========================================= */
 
@@ -520,6 +675,9 @@ async function createGlobeTexture() {
   canvas.height = 2048;
 
   const ctx = canvas.getContext("2d");
+
+  globeCanvas = canvas;
+  globeContext = ctx;
 
   ctx.fillStyle = "#172019";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -564,6 +722,8 @@ async function createGlobeTexture() {
   });
 
   const texture = new THREE.CanvasTexture(canvas);
+
+  globeTexture = texture;
 
   texture.colorSpace = THREE.SRGBColorSpace;
 
@@ -639,6 +799,105 @@ createGlobeTexture()
   });
 
 /* =========================================
+   VIDEO-PLAY-BUTTON ERKENNEN
+========================================= */
+
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+
+let pointerStart = null;
+
+function startHomeVideoFromClick(event) {
+  if (!pointerStart) return;
+
+  const movement = Math.hypot(
+    event.clientX - pointerStart.x,
+    event.clientY - pointerStart.y
+  );
+
+  pointerStart = null;
+
+  // Ziehen soll weiterhin nur die Kugel bewegen
+  if (movement > 7) return;
+
+  if (homeVideoPlaying || homeVideoStarting) return;
+
+  const rect = renderer.domElement.getBoundingClientRect();
+
+  pointer.x =
+    ((event.clientX - rect.left) / rect.width) * 2 - 1;
+
+  pointer.y =
+    -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(pointer, camera);
+
+  const intersections = raycaster.intersectObject(globe);
+
+  if (!intersections.length) return;
+
+  const uv = intersections[0].uv;
+
+  if (!uv) return;
+
+  const canvasW = 4096;
+  const canvasH = 2048;
+  const panelW = canvasW / sections.length;
+
+  const homeCenter = canvasW * 0.25;
+
+  const imageW = panelW * 0.56;
+  const imageH = canvasH * 0.19;
+
+  const imageX = homeCenter - imageW / 2;
+  const imageY = canvasH * 0.475;
+
+  const textureX = uv.x * canvasW;
+  const textureY = (1 - uv.y) * canvasH;
+
+  const buttonX = homeCenter;
+  const buttonY = imageY + imageH / 2;
+  const buttonRadius = 30;
+
+  const isInsideButton =
+    Math.hypot(
+      textureX - buttonX,
+      textureY - buttonY
+    ) <= buttonRadius;
+
+  const isInsideImage =
+    textureX >= imageX &&
+    textureX <= imageX + imageW &&
+    textureY >= imageY &&
+    textureY <= imageY + imageH;
+
+  if (!isInsideButton || !isInsideImage) return;
+
+  homeVideoStarting = true;
+
+  homeVideo.muted = false;
+  homeVideo.volume = 1;
+
+  homeVideo.play()
+    .then(() => {
+      homeVideoPlaying = true;
+      homeVideoStarting = false;
+
+      updateHomeVideoFrame();
+
+      console.info("CAMOU: Home-Video gestartet.");
+    })
+    .catch(error => {
+      homeVideoStarting = false;
+
+      console.error(
+        "CAMOU: Das Video konnte nicht gestartet werden.",
+        error
+      );
+    });
+}
+
+/* =========================================
    ZOOM
 ========================================= */
 
@@ -712,6 +971,11 @@ stage.addEventListener("pointerdown", event => {
     y: event.clientY
   });
 
+  pointerStart = {
+    x: event.clientX,
+    y: event.clientY
+  };
+
   stage.setPointerCapture(event.pointerId);
 
   if (pointers.size === 1) {
@@ -729,6 +993,7 @@ stage.addEventListener("pointerdown", event => {
     hint.classList.add("hidden");
   } else if (pointers.size === 2) {
     isDragging = false;
+    pointerStart = null;
 
     stage.classList.remove("dragging");
 
@@ -804,6 +1069,12 @@ stage.addEventListener("pointermove", event => {
 });
 
 function releasePointer(event) {
+  if (event.type === "pointerup") {
+    startHomeVideoFromClick(event);
+  } else {
+    pointerStart = null;
+  }
+
   pointers.delete(event.pointerId);
 
   if (pointers.size === 0) {
@@ -881,6 +1152,7 @@ function goToSection(index) {
   isDragging = false;
 
   pointers.clear();
+  pointerStart = null;
 
   stage.classList.remove("dragging");
 
@@ -1008,6 +1280,11 @@ function animate() {
     rotationY,
     0
   );
+
+  // Laufendes Video in die Kugeltextur zeichnen
+  if (homeVideoPlaying) {
+    updateHomeVideoFrame();
+  }
 
   renderer.render(scene, camera);
 
