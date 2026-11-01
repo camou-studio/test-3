@@ -55,8 +55,9 @@ const sections = [
     eyebrow: "LATEST RELEASE",
     title: ["f r a g m e n t e"],
     body: [
-      "Ein Song zwischen Licht und Schatten.",
-      "Zwischen dem, was man sieht –",
+      "songs, vom wind getragen,"
+       "zwischen licht und schatten.",
+      "zwischen dem, was man sieht ",
       "und dem, was bleibt."
     ],
     image: ASSETS.music,
@@ -100,8 +101,8 @@ const sections = [
     eyebrow: "04 — GET IN TOUCH",
     title: ["Contact"],
     body: [
-      "Für Anfragen und Zusammenarbeit.",
-      "Oder einfach für ein Gespräch."
+      "für anfragen und zusammenarbeit.",
+      "oder einfach so."
     ],
     image: ASSETS.contact,
     extra: [
