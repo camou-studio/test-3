@@ -666,7 +666,7 @@ function drawPanel(
   /* 9. BILDFENSTER */
 
   const imageW = panelW * 0.56;
-  const imageH = canvasH * 0.19;
+  const imageH = canvasH * (section.name === "MUSIC" ? 0.32 : 0.19);
 
   const imageX = centerX - imageW / 2;
   const imageY = canvasH * 0.475;
@@ -725,15 +725,11 @@ function drawPanel(
     }
   }
 
+  // Der echte Spotify-Player wird als HTML-Iframe exakt über diesem
+  // Bildrahmen positioniert (siehe updateMusicFramePosition).
   if (section.name === "MUSIC") {
-    ctx.fillStyle = "rgba(8,12,9,.78)";
-    ctx.fillRect(imageX, imageY + imageH - 85, imageW, 85);
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#edf2e9";
-    ctx.font = "500 21px 'DM Mono', monospace";
-    ctx.fillText("B3NN3T / SPOTIFY", centerX, imageY + imageH - 48, imageW*.9);
-    ctx.font = "400 17px 'DM Mono', monospace";
-    ctx.fillText("PLAYER ÖFFNEN ↗", centerX, imageY + imageH - 18, imageW*.9);
+    ctx.fillStyle = "#151515";
+    ctx.fillRect(imageX, imageY, imageW, imageH);
   }
   ctx.restore();
 
@@ -1186,53 +1182,66 @@ function startHomeVideoFromClick(event) {
 }
 
 
-/* Spotify kann technisch nicht als interaktives iframe auf eine
-   WebGL-Kugeltextur gezeichnet werden. Ein Klick auf das Fenster
-   in FRAGMENTE öffnet daher einen scrollbaren Player darüber. */
-const musicOverlay = document.getElementById("music-player-overlay");
-const musicClose = document.getElementById("music-player-close");
-const musicIframe = document.getElementById("music-spotify-frame");
-function closeMusicPlayer() {
-  musicOverlay.hidden = true;
-  musicIframe.src = "about:blank";
+/* =========================================
+   SPOTIFY DIREKT IM FRAGMENTE-BILDRAHMEN
+   Ein echtes iframe kann nicht in eine WebGL-Textur gerendert
+   werden. Deshalb folgt dieses HTML-Element der Projektion des
+   Bildrahmens auf der 3D-Kugel. Es bleibt innerhalb des Rahmens
+   bedienbar und scrollbar, ohne ein Popup zu öffnen.
+========================================= */
+const musicFrame = document.getElementById("music-frame-on-globe");
+const musicFrameCorners = [
+  [0,0], [1,0], [0,1], [1,1]
+];
+function projectMusicUV(u, v) {
+  // Three.js SphereGeometry: x=-r*cos(phi)*sin(theta),
+  // y=r*cos(theta), z=r*sin(phi)*sin(theta); v ist UV unten->oben.
+  const phi = u * Math.PI * 2;
+  const theta = (1-v) * Math.PI;
+  const point = new THREE.Vector3(
+    -CONFIG.radius*Math.cos(phi)*Math.sin(theta),
+    CONFIG.radius*Math.cos(theta),
+    CONFIG.radius*Math.sin(phi)*Math.sin(theta)
+  );
+  const normal = point.clone().normalize().transformDirection(globe.matrixWorld);
+  point.applyMatrix4(globe.matrixWorld);
+  const towardCamera = camera.position.clone().sub(point).normalize();
+  const facing = normal.dot(towardCamera);
+  point.project(camera);
+  const r = renderer.domElement.getBoundingClientRect();
+  const stageRect = stage.getBoundingClientRect();
+  return {
+    x: r.left-stageRect.left+(point.x+1)*r.width/2,
+    y: r.top-stageRect.top+(1-point.y)*r.height/2,
+    facing
+  };
 }
-function openMusicPlayer() {
-  velocityX = 0;
-  velocityY = 0;
-  musicIframe.src = "https://open.spotify.com/embed/artist/7pajHvUWNCnOPhDPyH4M6x?theme=0";
-  musicOverlay.hidden = false;
-}
-musicClose.addEventListener("click", closeMusicPlayer);
-musicOverlay.addEventListener("pointerdown", event => event.stopPropagation());
-musicOverlay.addEventListener("pointermove", event => event.stopPropagation());
-musicOverlay.addEventListener("pointerup", event => event.stopPropagation());
-musicOverlay.addEventListener("wheel", event => event.stopPropagation(), {passive:true});
-musicOverlay.addEventListener("click", event => {
-  if (event.target === musicOverlay) closeMusicPlayer();
-});
-document.addEventListener("keydown", event => {
-  if (event.key === "Escape" && !musicOverlay.hidden) closeMusicPlayer();
-});
-function handleMusicClick(event) {
-  if (!pointerStart) return false;
-  if (Math.hypot(event.clientX-pointerStart.x,event.clientY-pointerStart.y)>7) return false;
-  if (!globe || !globeTexture) return false;
-  const rect = renderer.domElement.getBoundingClientRect();
-  pointer.x = ((event.clientX-rect.left)/rect.width)*2-1;
-  pointer.y = -((event.clientY-rect.top)/rect.height)*2+1;
+function updateMusicFramePosition() {
+  if (!musicFrame || !globeTexture) return;
+  const cw=4096, ch=2048, pw=cw/sections.length;
+  const center=cw*(.25+1/sections.length);
+  const iw=pw*.56, ih=ch*.32;
+  const x0=(center-iw/2)/cw, x1=(center+iw/2)/cw;
+  const y0=1-(ch*.475)/ch, y1=1-(ch*.475+ih)/ch;
   globeGroup.updateMatrixWorld(true);
   camera.updateMatrixWorld(true);
-  raycaster.setFromCamera(pointer,camera);
-  const hit=raycaster.intersectObject(globe)[0];
-  if (!hit || !hit.uv) return false;
-  const tx=hit.uv.x*4096, ty=(1-hit.uv.y)*2048;
-  const pw=4096/sections.length;
-  const center=4096*(.25+1/sections.length);
-  const imageW=pw*.56, imageH=2048*.19;
-  const imageX=center-imageW/2, imageY=2048*.475;
-  const inWindow=tx>=imageX && tx<=imageX+imageW && ty>=imageY && ty<=imageY+imageH;
-  if (inWindow) { openMusicPlayer(); pointerStart=null; return true; }
-  return false;
+  const pts=[projectMusicUV(x0,y0),projectMusicUV(x1,y0),projectMusicUV(x0,y1),projectMusicUV(x1,y1)];
+  const visible=pts.every(p=>p.facing>.22) && currentIndex()===1;
+  if (!visible) { musicFrame.hidden=true; return; }
+  const left=Math.min(...pts.map(p=>p.x));
+  const right=Math.max(...pts.map(p=>p.x));
+  const top=Math.min(...pts.map(p=>p.y));
+  const bottom=Math.max(...pts.map(p=>p.y));
+  if (right-left<45 || bottom-top<35) {musicFrame.hidden=true;return;}
+  musicFrame.hidden=false;
+  musicFrame.style.left=left+'px';
+  musicFrame.style.top=top+'px';
+  musicFrame.style.width=(right-left)+'px';
+  musicFrame.style.height=(bottom-top)+'px';
+}
+// Eingaben innerhalb des Players gehören Spotify, nicht der Kugel.
+for (const name of ["pointerdown","pointermove","pointerup","wheel","touchstart","touchmove","touchend"]) {
+  musicFrame.addEventListener(name, event=>event.stopPropagation(), {passive:true});
 }
 
 /* =========================================
@@ -1409,10 +1418,8 @@ stage.addEventListener("pointermove", event => {
 function releasePointer(event) {
   if (event.type === "pointerup") {
     if (!handleEchoesClick(event)) {
-      if (!handleMusicClick(event)) {
-        handleContactClick(event);
-        startHomeVideoFromClick(event);
-      }
+      handleContactClick(event);
+      startHomeVideoFromClick(event);
     } else {
       pointerStart = null;
     }
@@ -1485,7 +1492,7 @@ function updateIndicator() {
 }
 
 function goToSection(index) {
-  if (!musicOverlay.hidden) closeMusicPlayer();
+
   const i =
     ((index % sections.length) + sections.length) %
     sections.length;
@@ -1624,6 +1631,7 @@ function animate() {
     refreshEchoesTexture();
   }
   renderer.render(scene, camera);
+  updateMusicFramePosition();
 
   updateIndicator();
 }

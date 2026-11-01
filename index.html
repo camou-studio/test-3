@@ -59,11 +59,13 @@
         </form>
       </div>
 
-      <div class="music-player-overlay" id="music-player-overlay" hidden role="dialog" aria-modal="true" aria-label="b3nn3t Spotify Player">
-        <div class="music-player-window">
-          <div class="music-player-header"><span>FRAGMENTE / B3NN3T — SPOTIFY</span><button type="button" id="music-player-close" aria-label="Player schliessen">✕</button></div>
-          <iframe id="music-spotify-frame" title="b3nn3t auf Spotify" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
-        </div>
+      <!-- Der Spotify-Player liegt direkt auf dem Bildrahmen der Kugel. -->
+      <div class="music-frame-on-globe" id="music-frame-on-globe" hidden>
+        <iframe id="music-spotify-frame"
+          title="b3nn3t – Spotify Künstler und Songs"
+          src="https://open.spotify.com/embed/artist/7pajHvUWNCnOPhDPyH4M6x?theme=0"
+          loading="eager"
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
       </div>
 
       <div class="zoom-controls" aria-label="Zoom">

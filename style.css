@@ -405,11 +405,24 @@ a {
 .footer-impressum:hover { color:var(--fg); }
 .footer-signature { margin-left:auto; text-align:right; }
 
-/* Scrollbares Spotify-Fenster innerhalb der CAMOU-Kugelansicht. */
-.music-player-overlay[hidden]{display:none!important}
-.music-player-overlay{position:absolute;inset:0;z-index:25;display:grid;place-items:center;background:rgba(5,9,6,.72);padding:20px;touch-action:auto}
-.music-player-window{width:min(540px,88vw);max-height:min(790px,82vh);display:flex;flex-direction:column;background:#151515;border:1px solid #84957f;box-shadow:0 18px 80px #000b;overflow:hidden}
-.music-player-header{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 17px;color:#e8eee4;font:11px 'DM Mono',monospace;letter-spacing:1px}
-.music-player-header button{border:0;background:none;color:inherit;font-size:20px;cursor:pointer}
-#music-spotify-frame{display:block;width:100%;height:min(680px,68vh);min-height:340px;border:0;overflow:auto;touch-action:pan-y}
-@media(max-width:700px){.music-player-window{width:94vw;max-height:82dvh}#music-spotify-frame{height:65dvh;min-height:320px}}
+/* Spotify liegt direkt auf dem Bildrahmen von FRAGMENTE,
+   nicht in einem separaten Popup. */
+.music-frame-on-globe[hidden] { display: none !important; }
+.music-frame-on-globe {
+  position: absolute;
+  z-index: 6;
+  overflow: hidden;
+  background: #151515;
+  border: 1px solid rgba(226,235,220,.65);
+  border-radius: 3px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.3);
+  pointer-events: auto;
+  touch-action: pan-y;
+}
+#music-spotify-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #151515;
+}
