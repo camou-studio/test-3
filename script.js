@@ -1250,10 +1250,10 @@ function updateMusicFramePosition() {
     musicFrame.hidden = true;
     return;
   }
-  // Leicht nach innen eingerückt, damit die originale Kugelrahmung
-  // sichtbar bleibt. Der Player selbst wird nicht geschert/gestaucht.
+  // Player füllt den projizierten Bildrahmen komplett aus.
+  // Originalproportionen bleiben erhalten: keine Trapez-Verzerrung.
   const scale = Math.min(projectedW / MUSIC_FRAME_WIDTH,
-                         projectedH / MUSIC_FRAME_HEIGHT) * .94;
+                         projectedH / MUSIC_FRAME_HEIGHT);
   const angle = Math.atan2(vy,vx);
   musicFrame.hidden = false;
   musicFrame.style.transform =

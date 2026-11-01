@@ -405,7 +405,9 @@ a {
 .footer-impressum:hover { color:var(--fg); }
 .footer-signature { margin-left:auto; text-align:right; }
 
-/* Lesbarer Spotify-Player, als starre Fläche an die Kugel gekoppelt. */
+/* Spotify: Künstlerkopf wird nur optisch abgeschnitten.
+   Spotify erlaubt keine Änderung der Inhalte innerhalb seines iframes.
+   Der eigentliche Player bleibt unverändert und intern scrollbar. */
 .music-frame-on-globe[hidden] { display: none !important; }
 .music-frame-on-globe {
   position: absolute;
@@ -416,19 +418,28 @@ a {
   z-index: 6;
   transform-origin: 0 0;
   overflow: hidden;
-  background: #151515;
-  border: 1px solid rgba(226,235,220,.65);
-  border-radius: 12px;
+  background: #121212;
+  border: 1px solid rgba(226,235,220,.60);
+  border-radius: 3px;
   box-shadow: 0 12px 36px rgba(0,0,0,.38);
   backface-visibility: hidden;
   will-change: transform;
   pointer-events: auto;
   touch-action: pan-y;
 }
+.spotify-list-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #121212;
+}
 #music-spotify-frame {
   display: block;
+  position: absolute;
+  left: 0;
+  top: -290px;
   width: 100%;
-  height: 100%;
+  height: calc(100% + 290px);
   border: 0;
-  background: #151515;
+  background: #121212;
 }
