@@ -419,7 +419,7 @@ a {
   overflow: hidden;
   background: #121212;
   border: 0;
-  border-radius: 2px;
+  border-radius: 0;
   backface-visibility: hidden;
   will-change: transform;
   pointer-events: auto;

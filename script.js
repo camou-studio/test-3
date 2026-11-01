@@ -673,15 +673,11 @@ function drawPanel(
 
   ctx.save();
 
-  // Dunkler Rahmenhintergrund
-  ctx.fillStyle = "rgba(8,13,10,0.9)";
-
-  ctx.fillRect(
-    imageX - 8,
-    imageY - 8,
-    imageW + 16,
-    imageH + 16
-  );
+  // Beim Musikbereich keinen zusätzlichen Bildrahmen hinter Spotify zeichnen.
+  if (section.name !== "MUSIC") {
+    ctx.fillStyle = "rgba(8,13,10,0.9)";
+    ctx.fillRect(imageX - 8, imageY - 8, imageW + 16, imageH + 16);
+  }
 
   // Bildfläche begrenzen
   ctx.save();
@@ -704,7 +700,7 @@ function drawPanel(
       imageW,
       imageH
     );
-  } else {
+  } else if (section.name !== "MUSIC") {
     drawCoverCrop(
       ctx,
       image,
@@ -741,12 +737,9 @@ function drawPanel(
   ctx.strokeStyle = "rgba(226,235,220,0.48)";
   ctx.lineWidth = 2;
 
-  ctx.strokeRect(
-    imageX,
-    imageY,
-    imageW,
-    imageH
-  );
+  if (section.name !== "MUSIC") {
+    ctx.strokeRect(imageX, imageY, imageW, imageH);
+  }
 
   ctx.restore();
 
@@ -1252,12 +1245,14 @@ function updateMusicFramePosition() {
   }
   // Player füllt den projizierten Bildrahmen komplett aus.
   // Originalproportionen bleiben erhalten: keine Trapez-Verzerrung.
-  const scale = Math.min(projectedW / MUSIC_FRAME_WIDTH,
-                         projectedH / MUSIC_FRAME_HEIGHT) * 0.90;
+  // Keine Skalierung eines kleinen Players innerhalb eines grossen Rahmens.
+  // Die native iframe-Fläche erhält direkt die projizierte Grösse des HOME-Videofensters.
   const angle = Math.atan2(vy,vx);
   musicFrame.hidden = false;
+  musicFrame.style.width = `${projectedW}px`;
+  musicFrame.style.height = `${projectedH}px`;
   musicFrame.style.transform =
-    `translate(${cx}px, ${cy}px) rotate(${angle}rad) scale(${scale}) translate(-50%, -50%)`;
+    `translate(${cx}px, ${cy}px) rotate(${angle}rad) translate(-50%, -50%)`;
 }
 // Eingaben innerhalb des Players gehören Spotify, nicht der Kugel.
 for (const name of ["pointerdown","pointermove","pointerup","wheel","touchstart","touchmove","touchend"]) {
