@@ -399,3 +399,8 @@ a {
   border-radius:0; background:#101411; color:white; padding:12px; font:16px Manrope,Arial,sans-serif; }
 .contact-editor-actions { display:flex; justify-content:flex-end; gap:12px; }
 .contact-editor-actions button { border:1px solid #81927c; background:#243128; color:white; padding:10px 14px; cursor:pointer; }
+
+/* Nur die permanente untere Leiste der Hauptseite. */
+.footer-impressum { color:var(--muted); text-decoration:none; }
+.footer-impressum:hover { color:var(--fg); }
+.footer-signature { margin-left:auto; text-align:right; }
