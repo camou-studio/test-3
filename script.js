@@ -55,10 +55,7 @@ const sections = [
       "und dem, was bleibt."
     ],
     image: ASSETS.music,
-    extra: [
-      "JETZT HÖREN →",
-      "SPOTIFY / APPLE MUSIC / YOUTUBE"
-    ]
+    extra: []
   },
   {
     name: "VISUALS",
@@ -728,6 +725,16 @@ function drawPanel(
     }
   }
 
+  if (section.name === "MUSIC") {
+    ctx.fillStyle = "rgba(8,12,9,.78)";
+    ctx.fillRect(imageX, imageY + imageH - 85, imageW, 85);
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#edf2e9";
+    ctx.font = "500 21px 'DM Mono', monospace";
+    ctx.fillText("B3NN3T / SPOTIFY", centerX, imageY + imageH - 48, imageW*.9);
+    ctx.font = "400 17px 'DM Mono', monospace";
+    ctx.fillText("PLAYER ÖFFNEN ↗", centerX, imageY + imageH - 18, imageW*.9);
+  }
   ctx.restore();
 
   if (section.name === "ECHOES") {
@@ -1178,6 +1185,56 @@ function startHomeVideoFromClick(event) {
     });
 }
 
+
+/* Spotify kann technisch nicht als interaktives iframe auf eine
+   WebGL-Kugeltextur gezeichnet werden. Ein Klick auf das Fenster
+   in FRAGMENTE öffnet daher einen scrollbaren Player darüber. */
+const musicOverlay = document.getElementById("music-player-overlay");
+const musicClose = document.getElementById("music-player-close");
+const musicIframe = document.getElementById("music-spotify-frame");
+function closeMusicPlayer() {
+  musicOverlay.hidden = true;
+  musicIframe.src = "about:blank";
+}
+function openMusicPlayer() {
+  velocityX = 0;
+  velocityY = 0;
+  musicIframe.src = "https://open.spotify.com/embed/artist/7pajHvUWNCnOPhDPyH4M6x?theme=0";
+  musicOverlay.hidden = false;
+}
+musicClose.addEventListener("click", closeMusicPlayer);
+musicOverlay.addEventListener("pointerdown", event => event.stopPropagation());
+musicOverlay.addEventListener("pointermove", event => event.stopPropagation());
+musicOverlay.addEventListener("pointerup", event => event.stopPropagation());
+musicOverlay.addEventListener("wheel", event => event.stopPropagation(), {passive:true});
+musicOverlay.addEventListener("click", event => {
+  if (event.target === musicOverlay) closeMusicPlayer();
+});
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && !musicOverlay.hidden) closeMusicPlayer();
+});
+function handleMusicClick(event) {
+  if (!pointerStart) return false;
+  if (Math.hypot(event.clientX-pointerStart.x,event.clientY-pointerStart.y)>7) return false;
+  if (!globe || !globeTexture) return false;
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((event.clientX-rect.left)/rect.width)*2-1;
+  pointer.y = -((event.clientY-rect.top)/rect.height)*2+1;
+  globeGroup.updateMatrixWorld(true);
+  camera.updateMatrixWorld(true);
+  raycaster.setFromCamera(pointer,camera);
+  const hit=raycaster.intersectObject(globe)[0];
+  if (!hit || !hit.uv) return false;
+  const tx=hit.uv.x*4096, ty=(1-hit.uv.y)*2048;
+  const pw=4096/sections.length;
+  const center=4096*(.25+1/sections.length);
+  const imageW=pw*.56, imageH=2048*.19;
+  const imageX=center-imageW/2, imageY=2048*.475;
+  const inWindow=tx>=imageX && tx<=imageX+imageW && ty>=imageY && ty<=imageY+imageH;
+  if (inWindow) { openMusicPlayer(); pointerStart=null; return true; }
+  return false;
+}
+
 /* =========================================
    ZOOM
 ========================================= */
@@ -1352,8 +1409,10 @@ stage.addEventListener("pointermove", event => {
 function releasePointer(event) {
   if (event.type === "pointerup") {
     if (!handleEchoesClick(event)) {
-      handleContactClick(event);
-      startHomeVideoFromClick(event);
+      if (!handleMusicClick(event)) {
+        handleContactClick(event);
+        startHomeVideoFromClick(event);
+      }
     } else {
       pointerStart = null;
     }
@@ -1426,6 +1485,7 @@ function updateIndicator() {
 }
 
 function goToSection(index) {
+  if (!musicOverlay.hidden) closeMusicPlayer();
   const i =
     ((index % sections.length) + sections.length) %
     sections.length;

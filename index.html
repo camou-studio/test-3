@@ -59,6 +59,13 @@
         </form>
       </div>
 
+      <div class="music-player-overlay" id="music-player-overlay" hidden role="dialog" aria-modal="true" aria-label="b3nn3t Spotify Player">
+        <div class="music-player-window">
+          <div class="music-player-header"><span>FRAGMENTE / B3NN3T — SPOTIFY</span><button type="button" id="music-player-close" aria-label="Player schliessen">✕</button></div>
+          <iframe id="music-spotify-frame" title="b3nn3t auf Spotify" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
+        </div>
+      </div>
+
       <div class="zoom-controls" aria-label="Zoom">
         <button id="zoom-in" aria-label="Vergrößern">+</button>
         <button id="zoom-out" aria-label="Verkleinern">−</button>
