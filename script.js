@@ -666,7 +666,7 @@ function drawPanel(
   /* 9. BILDFENSTER */
 
   const imageW = panelW * 0.56;
-  const imageH = canvasH * (section.name === "MUSIC" ? 0.32 : 0.19);
+  const imageH = canvasH * 0.19;
 
   const imageX = centerX - imageW / 2;
   const imageY = canvasH * 0.475;
@@ -1195,7 +1195,7 @@ const musicFrame = document.getElementById("music-frame-on-globe");
 // eine projektive 3D-CSS-Matrix. Dadurch kippt/verjüngt sich der Player
 // zusammen mit der Kugel, statt als flaches Rechteck stehenzubleiben.
 const MUSIC_FRAME_WIDTH = 420;
-const MUSIC_FRAME_HEIGHT = 600;
+const MUSIC_FRAME_HEIGHT = 356;
 
 function projectMusicUV(u, v) {
   const phi = u * Math.PI * 2;
@@ -1225,7 +1225,7 @@ function updateMusicFramePosition() {
   if (!musicFrame || !globeTexture) return;
   const cw = 4096, ch = 2048, pw = cw / sections.length;
   const center = cw * (.25 + 1 / sections.length);
-  const iw = pw * .56, ih = ch * .32;
+  const iw = pw * .56, ih = ch * .19;
   const x0 = (center - iw / 2) / cw, x1 = (center + iw / 2) / cw;
   const y0 = 1 - (ch * .475) / ch;
   const y1 = 1 - (ch * .475 + ih) / ch;
@@ -1253,7 +1253,7 @@ function updateMusicFramePosition() {
   // Player füllt den projizierten Bildrahmen komplett aus.
   // Originalproportionen bleiben erhalten: keine Trapez-Verzerrung.
   const scale = Math.min(projectedW / MUSIC_FRAME_WIDTH,
-                         projectedH / MUSIC_FRAME_HEIGHT);
+                         projectedH / MUSIC_FRAME_HEIGHT) * 0.90;
   const angle = Math.atan2(vy,vx);
   musicFrame.hidden = false;
   musicFrame.style.transform =
