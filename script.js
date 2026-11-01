@@ -1190,32 +1190,63 @@ function startHomeVideoFromClick(event) {
    bedienbar und scrollbar, ohne ein Popup zu öffnen.
 ========================================= */
 const musicFrame = document.getElementById("music-frame-on-globe");
-const musicFrameCorners = [
-  [0,0], [1,0], [0,1], [1,1]
-];
+// Ein iframe kann nicht als echte WebGL-Textur auf die Kugel gemappt werden.
+// Wir projizieren daher die vier Ecken des Musik-Bildrahmens und berechnen
+// eine projektive 3D-CSS-Matrix. Dadurch kippt/verjüngt sich der Player
+// zusammen mit der Kugel, statt als flaches Rechteck stehenzubleiben.
+const MUSIC_FRAME_WIDTH = 420;
+const MUSIC_FRAME_HEIGHT = 600;
+
 function projectMusicUV(u, v) {
-  // Three.js SphereGeometry: x=-r*cos(phi)*sin(theta),
-  // y=r*cos(theta), z=r*sin(phi)*sin(theta); v ist UV unten->oben.
   const phi = u * Math.PI * 2;
-  const theta = (1-v) * Math.PI;
+  const theta = (1 - v) * Math.PI;
   const point = new THREE.Vector3(
-    -CONFIG.radius*Math.cos(phi)*Math.sin(theta),
-    CONFIG.radius*Math.cos(theta),
-    CONFIG.radius*Math.sin(phi)*Math.sin(theta)
+    -CONFIG.radius * Math.cos(phi) * Math.sin(theta),
+    CONFIG.radius * Math.cos(theta),
+    CONFIG.radius * Math.sin(phi) * Math.sin(theta)
   );
   const normal = point.clone().normalize().transformDirection(globe.matrixWorld);
   point.applyMatrix4(globe.matrixWorld);
-  const towardCamera = camera.position.clone().sub(point).normalize();
-  const facing = normal.dot(towardCamera);
+  const facing = normal.dot(camera.position.clone().sub(point).normalize());
   point.project(camera);
-  const r = renderer.domElement.getBoundingClientRect();
+  const rect = renderer.domElement.getBoundingClientRect();
   const stageRect = stage.getBoundingClientRect();
   return {
-    x: r.left-stageRect.left+(point.x+1)*r.width/2,
-    y: r.top-stageRect.top+(1-point.y)*r.height/2,
+    x: rect.left - stageRect.left + (point.x + 1) * rect.width / 2,
+    y: rect.top - stageRect.top + (1 - point.y) * rect.height / 2,
     facing
   };
 }
+
+// Lineares 8x8-System für die perspektivische Homographie lösen.
+function solveMusicHomography(points, width, height) {
+  const src = [[0,0], [width,0], [0,height], [width,height]];
+  const matrix = [];
+  for (let i = 0; i < 4; i++) {
+    const [x,y] = src[i];
+    const {x:X,y:Y} = points[i];
+    matrix.push([x,y,1,0,0,0,-X*x,-X*y,X]);
+    matrix.push([0,0,0,x,y,1,-Y*x,-Y*y,Y]);
+  }
+  for (let col=0; col<8; col++) {
+    let pivot=col;
+    for (let r=col+1;r<8;r++) if (Math.abs(matrix[r][col])>Math.abs(matrix[pivot][col])) pivot=r;
+    if (Math.abs(matrix[pivot][col])<1e-10) return null;
+    [matrix[col],matrix[pivot]]=[matrix[pivot],matrix[col]];
+    const div=matrix[col][col];
+    for(let k=col;k<=8;k++) matrix[col][k]/=div;
+    for(let r=0;r<8;r++) {
+      if(r===col) continue;
+      const factor=matrix[r][col];
+      for(let k=col;k<=8;k++) matrix[r][k]-=factor*matrix[col][k];
+    }
+  }
+  const [a,b,c,d,e,f,g,h]=matrix.map(row=>row[8]);
+  // CSS matrix3d ist column-major. Projektive Abbildung:
+  // x'=(a*x+b*y+c)/(g*x+h*y+1), y'=(d*x+e*y+f)/(...).
+  return `matrix3d(${[a,d,0,g,b,e,0,h,0,0,1,0,c,f,0,1].join(',')})`;
+}
+
 function updateMusicFramePosition() {
   if (!musicFrame || !globeTexture) return;
   const cw=4096, ch=2048, pw=cw/sections.length;
@@ -1228,16 +1259,13 @@ function updateMusicFramePosition() {
   const pts=[projectMusicUV(x0,y0),projectMusicUV(x1,y0),projectMusicUV(x0,y1),projectMusicUV(x1,y1)];
   const visible=pts.every(p=>p.facing>.22) && currentIndex()===1;
   if (!visible) { musicFrame.hidden=true; return; }
-  const left=Math.min(...pts.map(p=>p.x));
-  const right=Math.max(...pts.map(p=>p.x));
-  const top=Math.min(...pts.map(p=>p.y));
-  const bottom=Math.max(...pts.map(p=>p.y));
-  if (right-left<45 || bottom-top<35) {musicFrame.hidden=true;return;}
+  const width=Math.max(...pts.map(p=>p.x))-Math.min(...pts.map(p=>p.x));
+  const height=Math.max(...pts.map(p=>p.y))-Math.min(...pts.map(p=>p.y));
+  if(width<45 || height<35) { musicFrame.hidden=true; return; }
+  const matrix=solveMusicHomography(pts,MUSIC_FRAME_WIDTH,MUSIC_FRAME_HEIGHT);
+  if (!matrix) { musicFrame.hidden=true; return; }
   musicFrame.hidden=false;
-  musicFrame.style.left=left+'px';
-  musicFrame.style.top=top+'px';
-  musicFrame.style.width=(right-left)+'px';
-  musicFrame.style.height=(bottom-top)+'px';
+  musicFrame.style.transform=matrix;
 }
 // Eingaben innerhalb des Players gehören Spotify, nicht der Kugel.
 for (const name of ["pointerdown","pointermove","pointerup","wheel","touchstart","touchmove","touchend"]) {
