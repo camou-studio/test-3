@@ -46,6 +46,18 @@
     <section class="globe-stage" aria-label="Drehbare Camou-Kugel">
 
       <div id="globe"></div>
+      <!-- Native Eingabe nur während der Bearbeitung, Kugeltextur bleibt sichtbar. -->
+      <div class="contact-editor" id="contact-editor" hidden>
+        <form class="contact-editor-box" id="contact-editor-form">
+          <label for="contact-editor-input" id="contact-editor-label">Eingabe</label>
+          <input id="contact-editor-input" autocomplete="off">
+          <textarea id="contact-editor-textarea" rows="5" hidden></textarea>
+          <div class="contact-editor-actions">
+            <button type="button" id="contact-editor-cancel">Abbrechen</button>
+            <button type="submit">Übernehmen</button>
+          </div>
+        </form>
+      </div>
 
       <div class="zoom-controls" aria-label="Zoom">
         <button id="zoom-in" aria-label="Vergrößern">+</button>

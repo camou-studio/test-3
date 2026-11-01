@@ -55,9 +55,8 @@ const sections = [
     eyebrow: "LATEST RELEASE",
     title: ["f r a g m e n t e"],
     body: [
-      "songs, vom wind getragen,"
-       "zwischen licht und schatten.",
-      "zwischen dem, was man sieht ",
+      "Ein Song zwischen Licht und Schatten.",
+      "Zwischen dem, was man sieht –",
       "und dem, was bleibt."
     ],
     image: ASSETS.music,
@@ -101,8 +100,8 @@ const sections = [
     eyebrow: "04 — GET IN TOUCH",
     title: ["Contact"],
     body: [
-      "für anfragen und zusammenarbeit.",
-      "oder einfach so."
+      "Für Anfragen und Zusammenarbeit.",
+      "Oder einfach für ein Gespräch."
     ],
     image: ASSETS.contact,
     extra: [
@@ -218,8 +217,6 @@ homeVideo.volume = 1;
 homeVideo.playsInline = true;
 homeVideo.preload = "auto";
 
-// Unterscheidung zwischen gestartet und gerade laufend
-let homeVideoStarted = false;
 let homeVideoPlaying = false;
 let homeVideoStarting = false;
 
@@ -249,7 +246,7 @@ function loadImage(src) {
 }
 
 /* =========================================
-   BILDER UND VIDEO ZUSCHNEIDEN
+   BILDER ZUSCHNEIDEN
 ========================================= */
 
 function drawCoverCrop(ctx, image, x, y, w, h) {
@@ -336,6 +333,91 @@ function drawPlayButton(ctx, centerX, centerY, size) {
   ctx.restore();
 }
 
+/* CONTACT ist eine echte CanvasTexture auf der Kugel. Die Eingabe selbst
+   erfolgt kurzzeitig über ein natives Feld, damit Tastatur/IME funktionieren. */
+const contactValues = { name:"", email:"", subject:"", message:"", privacy:false };
+// Existing Google Apps Script endpoint from the supplied kontakt.html.
+const CONTACT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby3SfFxFDJQZNL0PxI75Z0O_HyDZl_MoC2b8jcW5PLy0kwPAuiOnK9macrxFTaUboXftg/exec";
+let contactSending = false;
+let contactStatus = "";
+const contactHitAreas = [
+  { key:"name",    label:"NAME",     x1:-280,x2:280,y1:650,y2:725 },
+  { key:"email",   label:"E-MAIL",   x1:-280,x2:280,y1:738,y2:813 },
+  { key:"subject", label:"BETREFF",  x1:-280,x2:280,y1:826,y2:901 },
+  { key:"message", label:"NACHRICHT",x1:-280,x2:280,y1:914,y2:1170 },
+  { key:"privacy", label:"DATENSCHUTZ",x1:-280,x2:280,y1:1183,y2:1245 },
+  { key:"send",    label:"SENDEN",   x1:-280,x2:280,y1:1258,y2:1330 }
+];
+function contactText(ctx, value, x, y, maxWidth, lineHeight, maxLines) {
+  const lines = String(value || "").split("\n"); let count=0;
+  for (const paragraph of lines) {
+    const words = paragraph.split(/\s+/); let line="";
+    for (const word of words) {
+      const test = line ? line+" "+word : word;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        ctx.fillText(line,x,y+count*lineHeight); count++; line=word;
+        if(count>=maxLines)return;
+      } else line=test;
+    }
+    ctx.fillText(line,x,y+count*lineHeight);count++;
+    if(count>=maxLines)return;
+  }
+}
+function drawContactPanel(ctx, section, centerX, panelW, canvasH) {
+  const x=centerX-panelW/2;
+  ctx.save();ctx.beginPath();ctx.rect(x,0,panelW,canvasH);ctx.clip();
+  const bg=ctx.createLinearGradient(x,0,x+panelW,canvasH);
+  bg.addColorStop(0,"#18221b");bg.addColorStop(.5,"#202c23");bg.addColorStop(1,"#111813");
+  ctx.fillStyle=bg;ctx.fillRect(x,0,panelW,canvasH);
+  ctx.textAlign="center";ctx.fillStyle="#d9e6d2";
+  ctx.font="300 150px Manrope, Arial";ctx.fillText("u",centerX,canvasH*.115);
+  ctx.font="500 21px 'DM Mono', monospace";ctx.fillStyle="#b8c9b0";
+  ctx.fillText("04 — GET IN TOUCH",centerX,canvasH*.24,panelW*.8);
+  ctx.font="300 58px Manrope, Arial";ctx.fillStyle="#f0f2eb";
+  ctx.fillText("Contact",centerX,canvasH*.31,panelW*.8);
+  ctx.textAlign="left";
+  for(const a of contactHitAreas){
+    const left=centerX+a.x1, width=a.x2-a.x1;
+    const y=a.y1, h=a.y2-a.y1;
+    // Dark fields provide the boundaries; only the action gets a subtle outline.
+    ctx.strokeStyle="rgba(226,235,220,.17)";ctx.lineWidth=1;
+    ctx.fillStyle="rgba(5,12,8,.5)";
+    ctx.fillRect(left,y,width,h);
+    if (a.key === 'send') ctx.strokeRect(left+.5,y+.5,width-1,h-1);
+    if(a.key==='privacy'){
+      ctx.strokeRect(left+15.5,y+17.5,23,23);
+      if(contactValues.privacy){ctx.fillStyle="#c4d9b8";ctx.font="bold 21px Arial";ctx.fillText("✓",left+18,y+37);}
+      ctx.fillStyle="#e2e9df";ctx.font="16px 'DM Mono',monospace";
+      ctx.fillText("Angaben zur Bearbeitung speichern",left+49,y+38,width-70);
+      continue;
+    }
+    if(a.key==='send'){
+      ctx.fillStyle="#e9f1e4";ctx.font="500 20px 'DM Mono',monospace";
+      ctx.textAlign="center";ctx.fillText(contactSending ? "WIRD GESENDET …" : "NACHRICHT SENDEN →",centerX,y+44,width-25);ctx.textAlign="left";
+      continue;
+    }
+    ctx.fillStyle="#b5c5b0";ctx.font="500 15px 'DM Mono',monospace";
+    ctx.fillText(a.label,left+15,y+22,width-30);
+    ctx.fillStyle="#f0f2eb";ctx.font="20px Manrope,Arial";
+    const v=contactValues[a.key] || (a.key==='message'?"Hier Nachricht eingeben …":"Antippen zum Eingeben …");
+    contactText(ctx,v,left+15,y+48,width-30,30,a.key==='message'?6:1);
+  }
+  ctx.fillStyle="#a9bda3";ctx.font="17px 'DM Mono',monospace";
+  ctx.textAlign="center";ctx.fillText(contactStatus || "Datenschutz: siehe Impressum",centerX,1390,panelW*.75);
+  ctx.strokeStyle="rgba(226,235,220,.35)";ctx.beginPath();
+  ctx.moveTo(centerX-panelW*.38,1455);ctx.lineTo(centerX+panelW*.38,1455);ctx.stroke();
+  ctx.fillStyle="#b5c5b0";ctx.font="19px 'DM Mono',monospace";
+  ctx.fillText("05 / 05",centerX,1535);
+  ctx.restore();
+}
+function redrawContactTexture(){
+  if(!globeContext||!globeTexture)return;
+  const w=globeCanvas.width,h=globeCanvas.height,pw=w/sections.length;
+  const center=w*(.25+4/sections.length);
+  drawContactPanel(globeContext,sections[4],center,pw,h);
+  drawContactPanel(globeContext,sections[4],center-w,pw,h);
+  globeTexture.needsUpdate=true;
+}
 /* =========================================
    THEMENBEREICH ZEICHNEN
 ========================================= */
@@ -348,6 +430,10 @@ function drawPanel(
   panelW,
   canvasH
 ) {
+  if (section.name === "CONTACT") {
+    drawContactPanel(ctx,section,centerX,panelW,canvasH);
+    return;
+  }
   const x = centerX - panelW / 2;
 
   ctx.save();
@@ -521,10 +607,10 @@ function drawPanel(
   ctx.rect(imageX, imageY, imageW, imageH);
   ctx.clip();
 
-  // Home: Video zeigen, sobald es einmal gestartet wurde
+  // Video oder bisheriges Vorschaubild
   if (
     section.name === "HOME" &&
-    homeVideoStarted &&
+    homeVideoPlaying &&
     homeVideo.readyState >= 2
   ) {
     drawCoverCrop(
@@ -535,18 +621,7 @@ function drawPanel(
       imageW,
       imageH
     );
-
-    // Play-Button im pausierten Zustand
-    if (homeVideo.paused) {
-      drawPlayButton(
-        ctx,
-        centerX,
-        imageY + imageH / 2,
-        48
-      );
-    }
   } else {
-    // Vorschaubild vor dem ersten Start
     drawCoverCrop(
       ctx,
       image,
@@ -556,6 +631,7 @@ function drawPanel(
       imageH
     );
 
+    // Play-Button nur auf Home
     if (section.name === "HOME") {
       drawPlayButton(
         ctx,
@@ -622,7 +698,7 @@ function drawPanel(
 
 function updateHomeVideoFrame() {
   if (
-    !homeVideoStarted ||
+    !homeVideoPlaying ||
     !globeCanvas ||
     !globeContext ||
     !globeTexture ||
@@ -655,7 +731,6 @@ function updateHomeVideoFrame() {
 
   globeContext.clip();
 
-  // Aktuelles Videobild zeichnen
   drawCoverCrop(
     globeContext,
     homeVideo,
@@ -666,16 +741,6 @@ function updateHomeVideoFrame() {
   );
 
   globeContext.restore();
-
-  // Play-Button wieder einblenden, wenn pausiert
-  if (homeVideo.paused) {
-    drawPlayButton(
-      globeContext,
-      homeCenter,
-      imageY + imageH / 2,
-      48
-    );
-  }
 
   globeTexture.needsUpdate = true;
 }
@@ -823,13 +888,93 @@ createGlobeTexture()
   });
 
 /* =========================================
-   VIDEO: STARTEN, PAUSIEREN, FORTSETZEN
+   VIDEO-PLAY-BUTTON ERKENNEN
 ========================================= */
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 
 let pointerStart = null;
+
+const editor = document.getElementById("contact-editor");
+const editorForm = document.getElementById("contact-editor-form");
+const editorInput = document.getElementById("contact-editor-input");
+const editorTextarea = document.getElementById("contact-editor-textarea");
+const editorLabel = document.getElementById("contact-editor-label");
+let editingKey = null;
+function openContactEditor(key){
+  editingKey=key;editor.hidden=false;
+  const multiline=key==="message";
+  editorInput.hidden=multiline;editorTextarea.hidden=!multiline;
+  const el=multiline?editorTextarea:editorInput;
+  editorLabel.textContent=contactHitAreas.find(a=>a.key===key).label;
+  if(!multiline){editorInput.type=key==="email"?"email":"text";}
+  el.value=contactValues[key];
+  velocityX=0;velocityY=0;menuAnimating=false;
+  setTimeout(()=>el.focus(),40);
+}
+function closeContactEditor(){editor.hidden=true;editingKey=null;}
+editorForm.addEventListener("submit",event=>{
+  event.preventDefault();if(!editingKey)return;
+  const el=editingKey==="message"?editorTextarea:editorInput;
+  contactValues[editingKey]=el.value.trim().slice(0,editingKey==="message"?1200:120);
+  closeContactEditor();redrawContactTexture();
+});
+document.getElementById("contact-editor-cancel").addEventListener("click",closeContactEditor);
+editor.addEventListener("pointerdown",e=>e.stopPropagation());
+editor.addEventListener("pointermove",e=>e.stopPropagation());
+editor.addEventListener("pointerup",e=>e.stopPropagation());
+function handleContactClick(event){
+  if(!pointerStart||!editor.hidden)return;
+  if(Math.hypot(event.clientX-pointerStart.x,event.clientY-pointerStart.y)>7)return;
+  const rect=renderer.domElement.getBoundingClientRect();
+  pointer.set(((event.clientX-rect.left)/rect.width)*2-1,-((event.clientY-rect.top)/rect.height)*2+1);
+  raycaster.setFromCamera(pointer,camera);
+  const hit=raycaster.intersectObject(globe)[0];if(!hit||!hit.uv)return;
+  const u=hit.uv.x*4096,v=(1-hit.uv.y)*2048;
+  const center=4096*(.25+4/sections.length);
+  const dx=((u-center+2048+4096)%4096)-2048;
+  const target=contactHitAreas.find(a=>dx>=a.x1&&dx<=a.x2&&v>=a.y1&&v<=a.y2);
+  if(!target)return;
+  if(target.key==="privacy"){
+    contactValues.privacy=!contactValues.privacy;redrawContactTexture();return;
+  }
+  if(target.key==="send"){
+    if(!contactValues.name||!contactValues.email||!contactValues.subject||!contactValues.message||!contactValues.privacy){
+      alert("Bitte alle Felder ausfüllen und Datenschutz bestätigen.");return;
+    }
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactValues.email)){
+      alert("Bitte eine gültige E-Mail-Adresse eingeben.");return;
+    }
+    if (contactSending) return;
+    contactSending = true;
+    contactStatus = "Übertragung läuft …";
+    redrawContactTexture();
+    const formData = new FormData();
+    formData.append("name", contactValues.name);
+    formData.append("email", contactValues.email);
+    formData.append("subject", contactValues.subject);
+    formData.append("message", contactValues.message);
+    formData.append("privacy", "zugestimmt");
+    formData.append("website", ""); // Honeypot field used by the existing endpoint.
+    fetch(CONTACT_SCRIPT_URL, { method:"POST", body:formData, mode:"no-cors" })
+      .then(() => {
+        // no-cors returns an opaque response: server acceptance cannot be verified.
+        contactStatus = "Übermittelt – Empfang nicht bestätigt";
+        contactSending = false;
+        redrawContactTexture();
+      })
+      .catch(error => {
+        console.error("Kontaktformular: Übertragungsfehler", error);
+        contactStatus = "Übertragung fehlgeschlagen";
+        contactSending = false;
+        redrawContactTexture();
+      });
+    return;
+  }
+  openContactEditor(target.key);
+}
+
 
 function startHomeVideoFromClick(event) {
   if (!pointerStart) return;
@@ -844,7 +989,7 @@ function startHomeVideoFromClick(event) {
   // Ziehen soll weiterhin nur die Kugel bewegen
   if (movement > 7) return;
 
-  if (homeVideoStarting) return;
+  if (homeVideoPlaying || homeVideoStarting) return;
 
   const rect = renderer.domElement.getBoundingClientRect();
 
@@ -879,55 +1024,6 @@ function startHomeVideoFromClick(event) {
   const textureX = uv.x * canvasW;
   const textureY = (1 - uv.y) * canvasH;
 
-  const isInsideImage =
-    textureX >= imageX &&
-    textureX <= imageX + imageW &&
-    textureY >= imageY &&
-    textureY <= imageY + imageH;
-
-  // Klick muss innerhalb des Home-Videofensters liegen
-  if (!isInsideImage) return;
-
-  /* VIDEO WURDE BEREITS GESTARTET */
-
-  if (homeVideoStarted) {
-    if (homeVideo.paused) {
-      // Pausiertes Video fortsetzen
-      homeVideoStarting = true;
-
-      homeVideo.play()
-        .then(() => {
-          homeVideoPlaying = true;
-          homeVideoStarting = false;
-
-          updateHomeVideoFrame();
-
-          console.info("CAMOU: Home-Video fortgesetzt.");
-        })
-        .catch(error => {
-          homeVideoStarting = false;
-
-          console.error(
-            "CAMOU: Das Video konnte nicht fortgesetzt werden.",
-            error
-          );
-        });
-    } else {
-      // Laufendes Video pausieren
-      homeVideo.pause();
-
-      homeVideoPlaying = false;
-
-      updateHomeVideoFrame();
-
-      console.info("CAMOU: Home-Video pausiert.");
-    }
-
-    return;
-  }
-
-  /* ERSTER START: PLAY-BUTTON ERFORDERLICH */
-
   const buttonX = homeCenter;
   const buttonY = imageY + imageH / 2;
   const buttonRadius = 30;
@@ -938,7 +1034,13 @@ function startHomeVideoFromClick(event) {
       textureY - buttonY
     ) <= buttonRadius;
 
-  if (!isInsideButton) return;
+  const isInsideImage =
+    textureX >= imageX &&
+    textureX <= imageX + imageW &&
+    textureY >= imageY &&
+    textureY <= imageY + imageH;
+
+  if (!isInsideButton || !isInsideImage) return;
 
   homeVideoStarting = true;
 
@@ -947,7 +1049,6 @@ function startHomeVideoFromClick(event) {
 
   homeVideo.play()
     .then(() => {
-      homeVideoStarted = true;
       homeVideoPlaying = true;
       homeVideoStarting = false;
 
@@ -1138,6 +1239,7 @@ stage.addEventListener("pointermove", event => {
 
 function releasePointer(event) {
   if (event.type === "pointerup") {
+    handleContactClick(event);
     startHomeVideoFromClick(event);
   } else {
     pointerStart = null;
@@ -1349,8 +1451,8 @@ function animate() {
     0
   );
 
-  // Video nur aktualisieren, solange es tatsächlich läuft
-  if (homeVideoStarted && !homeVideo.paused) {
+  // Laufendes Video in die Kugeltextur zeichnen
+  if (homeVideoPlaying) {
     updateHomeVideoFrame();
   }
 

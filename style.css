@@ -386,3 +386,16 @@ a {
     transition-duration: .01ms !important;
   }
 }
+
+/* CAMOU: Tastatureingabe für die gekrümmten Felder. Nur bei Bearbeitung sichtbar. */
+.contact-editor[hidden] { display: none !important; }
+.contact-editor { position:absolute; inset:0; z-index:30; display:grid; place-items:center;
+  background:rgba(5,9,6,.70); padding:18px; cursor:default; touch-action:auto; }
+.contact-editor-box { width:min(440px,92vw); max-height:85%; overflow:auto;
+  background:#19231c; color:#edf1e9; border:1px solid #81927c; padding:24px;
+  box-shadow:0 20px 70px #0009; display:grid; gap:14px; }
+.contact-editor-box label { font:12px 'DM Mono',monospace; text-transform:uppercase; letter-spacing:1px; }
+.contact-editor-box input,.contact-editor-box textarea { width:100%; border:1px solid #81927c;
+  border-radius:0; background:#101411; color:white; padding:12px; font:16px Manrope,Arial,sans-serif; }
+.contact-editor-actions { display:flex; justify-content:flex-end; gap:12px; }
+.contact-editor-actions button { border:1px solid #81927c; background:#243128; color:white; padding:10px 14px; cursor:pointer; }
