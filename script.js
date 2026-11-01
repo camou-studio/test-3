@@ -1218,54 +1218,46 @@ function projectMusicUV(u, v) {
   };
 }
 
-// Lineares 8x8-System für die perspektivische Homographie lösen.
-function solveMusicHomography(points, width, height) {
-  const src = [[0,0], [width,0], [0,height], [width,height]];
-  const matrix = [];
-  for (let i = 0; i < 4; i++) {
-    const [x,y] = src[i];
-    const {x:X,y:Y} = points[i];
-    matrix.push([x,y,1,0,0,0,-X*x,-X*y,X]);
-    matrix.push([0,0,0,x,y,1,-Y*x,-Y*y,Y]);
-  }
-  for (let col=0; col<8; col++) {
-    let pivot=col;
-    for (let r=col+1;r<8;r++) if (Math.abs(matrix[r][col])>Math.abs(matrix[pivot][col])) pivot=r;
-    if (Math.abs(matrix[pivot][col])<1e-10) return null;
-    [matrix[col],matrix[pivot]]=[matrix[pivot],matrix[col]];
-    const div=matrix[col][col];
-    for(let k=col;k<=8;k++) matrix[col][k]/=div;
-    for(let r=0;r<8;r++) {
-      if(r===col) continue;
-      const factor=matrix[r][col];
-      for(let k=col;k<=8;k++) matrix[r][k]-=factor*matrix[col][k];
-    }
-  }
-  const [a,b,c,d,e,f,g,h]=matrix.map(row=>row[8]);
-  // CSS matrix3d ist column-major. Projektive Abbildung:
-  // x'=(a*x+b*y+c)/(g*x+h*y+1), y'=(d*x+e*y+f)/(...).
-  return `matrix3d(${[a,d,0,g,b,e,0,h,0,0,1,0,c,f,0,1].join(',')})`;
-}
-
+// Die Spotify-Oberfläche bleibt eine unverzerrte, ebene HTML-Fläche.
+// Wir übernehmen Position, Größe und eine leichte Drehung aus der Projektion
+// des Kugelrahmens. Keine Homographie: Schrift und Bedienung bleiben lesbar.
 function updateMusicFramePosition() {
   if (!musicFrame || !globeTexture) return;
-  const cw=4096, ch=2048, pw=cw/sections.length;
-  const center=cw*(.25+1/sections.length);
-  const iw=pw*.56, ih=ch*.32;
-  const x0=(center-iw/2)/cw, x1=(center+iw/2)/cw;
-  const y0=1-(ch*.475)/ch, y1=1-(ch*.475+ih)/ch;
+  const cw = 4096, ch = 2048, pw = cw / sections.length;
+  const center = cw * (.25 + 1 / sections.length);
+  const iw = pw * .56, ih = ch * .32;
+  const x0 = (center - iw / 2) / cw, x1 = (center + iw / 2) / cw;
+  const y0 = 1 - (ch * .475) / ch;
+  const y1 = 1 - (ch * .475 + ih) / ch;
   globeGroup.updateMatrixWorld(true);
   camera.updateMatrixWorld(true);
-  const pts=[projectMusicUV(x0,y0),projectMusicUV(x1,y0),projectMusicUV(x0,y1),projectMusicUV(x1,y1)];
-  const visible=pts.every(p=>p.facing>.22) && currentIndex()===1;
-  if (!visible) { musicFrame.hidden=true; return; }
-  const width=Math.max(...pts.map(p=>p.x))-Math.min(...pts.map(p=>p.x));
-  const height=Math.max(...pts.map(p=>p.y))-Math.min(...pts.map(p=>p.y));
-  if(width<45 || height<35) { musicFrame.hidden=true; return; }
-  const matrix=solveMusicHomography(pts,MUSIC_FRAME_WIDTH,MUSIC_FRAME_HEIGHT);
-  if (!matrix) { musicFrame.hidden=true; return; }
-  musicFrame.hidden=false;
-  musicFrame.style.transform=matrix;
+  const tl = projectMusicUV(x0, y0), tr = projectMusicUV(x1, y0);
+  const bl = projectMusicUV(x0, y1), br = projectMusicUV(x1, y1);
+  const corners = [tl, tr, bl, br];
+  if (currentIndex() !== 1 || corners.some(p => p.facing < .35)) {
+    musicFrame.hidden = true;
+    return;
+  }
+  const cx = corners.reduce((sum,p) => sum + p.x,0) / 4;
+  const cy = corners.reduce((sum,p) => sum + p.y,0) / 4;
+  const vx = ((tr.x-tl.x) + (br.x-bl.x)) / 2;
+  const vy = ((tr.y-tl.y) + (br.y-bl.y)) / 2;
+  const hx = ((bl.x-tl.x) + (br.x-tr.x)) / 2;
+  const hy = ((bl.y-tl.y) + (br.y-tr.y)) / 2;
+  const projectedW = Math.hypot(vx,vy);
+  const projectedH = Math.hypot(hx,hy);
+  if (projectedW < 45 || projectedH < 50) {
+    musicFrame.hidden = true;
+    return;
+  }
+  // Leicht nach innen eingerückt, damit die originale Kugelrahmung
+  // sichtbar bleibt. Der Player selbst wird nicht geschert/gestaucht.
+  const scale = Math.min(projectedW / MUSIC_FRAME_WIDTH,
+                         projectedH / MUSIC_FRAME_HEIGHT) * .94;
+  const angle = Math.atan2(vy,vx);
+  musicFrame.hidden = false;
+  musicFrame.style.transform =
+    `translate(${cx}px, ${cy}px) rotate(${angle}rad) scale(${scale}) translate(-50%, -50%)`;
 }
 // Eingaben innerhalb des Players gehören Spotify, nicht der Kugel.
 for (const name of ["pointerdown","pointermove","pointerup","wheel","touchstart","touchmove","touchend"]) {

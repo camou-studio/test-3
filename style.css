@@ -405,7 +405,7 @@ a {
 .footer-impressum:hover { color:var(--fg); }
 .footer-signature { margin-left:auto; text-align:right; }
 
-/* Perspektivisch auf die Kugel projizierter Spotify-Bildrahmen. */
+/* Lesbarer Spotify-Player, als starre Fläche an die Kugel gekoppelt. */
 .music-frame-on-globe[hidden] { display: none !important; }
 .music-frame-on-globe {
   position: absolute;
@@ -418,7 +418,8 @@ a {
   overflow: hidden;
   background: #151515;
   border: 1px solid rgba(226,235,220,.65);
-  border-radius: 3px;
+  border-radius: 12px;
+  box-shadow: 0 12px 36px rgba(0,0,0,.38);
   backface-visibility: hidden;
   will-change: transform;
   pointer-events: auto;
