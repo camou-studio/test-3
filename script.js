@@ -1175,88 +1175,91 @@ function startHomeVideoFromClick(event) {
 }
 
 
-/* =========================================
-   SPOTIFY-MODAL – Bild auf der Kugel anklicken
-========================================= */
 
 /* =========================================
-   SPOTIFY-MODAL
-   Öffnen / Schliessen / Tastatur
+   SPOTIFY-MODAL – unabhängig von der Kugel
 ========================================= */
 
-const spotifyModal =
-  document.getElementById("spotify-modal");
-
-const spotifyPlayer =
-  document.getElementById("spotify-modal-player");
-
-const spotifyClose =
-  document.getElementById("spotify-modal-close");
+const spotifyModal = document.getElementById("spotify-modal");
+const spotifyPlayer = document.getElementById("spotify-modal-player");
+const spotifyClose = document.getElementById("spotify-modal-close");
 
 let spotifyOpen = false;
 
+// Dialog aus dem Kugelcontainer herausnehmen.
+if (spotifyModal && spotifyModal.parentElement !== document.body) {
+  document.body.appendChild(spotifyModal);
+}
+
 function openSpotifyModal() {
-  if (!spotifyModal || !spotifyPlayer) return;
+  if (!spotifyModal || !spotifyPlayer || spotifyOpen) return;
 
   spotifyOpen = true;
+  velocityX = 0;
+  velocityY = 0;
+  isDragging = false;
 
   spotifyModal.hidden = false;
   spotifyModal.style.display = "flex";
 
   document.body.classList.add("spotify-dialog-open");
 
-  if (!spotifyPlayer.getAttribute("src")) {
-    spotifyPlayer.src = spotifyPlayer.dataset.src;
-  }
+  spotifyPlayer.src = spotifyPlayer.dataset.src ||
+    "https://open.spotify.com/embed/artist/7pajHvUWNCnOPhDPyH4M6x?theme=0";
 
-  velocityX = 0;
-  velocityY = 0;
-
-  if (spotifyClose) {
-    spotifyClose.focus();
-  }
+  spotifyClose?.focus({ preventScroll: true });
 }
 
 function closeSpotifyModal() {
   if (!spotifyModal) return;
 
   spotifyOpen = false;
-
   spotifyModal.hidden = true;
   spotifyModal.style.display = "none";
 
   document.body.classList.remove("spotify-dialog-open");
 
-  if (spotifyPlayer) {
-    spotifyPlayer.removeAttribute("src");
+  // Stoppt Spotify beim Schliessen.
+  spotifyPlayer?.removeAttribute("src");
+}
+
+function closeFromButton(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  closeSpotifyModal();
+}
+
+spotifyClose?.addEventListener(
+  "pointerdown",
+  closeFromButton,
+  true
+);
+
+spotifyClose?.addEventListener(
+  "click",
+  closeFromButton,
+  true
+);
+
+// Klick ausserhalb des Players.
+spotifyModal?.addEventListener("pointerdown", event => {
+  if (
+    event.target === spotifyModal ||
+    event.target.closest?.("[data-close-spotify]")
+  ) {
+    closeFromButton(event);
   }
-}
+}, true);
 
-if (spotifyClose) {
-  spotifyClose.addEventListener("click", function(event) {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    closeSpotifyModal();
-  });
-}
-
-if (spotifyModal) {
-  spotifyModal.addEventListener("click", function(event) {
-    if (
-      event.target === spotifyModal ||
-      event.target.hasAttribute("data-close-spotify")
-    ) {
-      closeSpotifyModal();
-    }
-  });
-}
-
-window.addEventListener("keydown", function(event) {
+// Escape schliesst ebenfalls.
+window.addEventListener("keydown", event => {
   if (spotifyOpen && event.key === "Escape") {
     event.preventDefault();
+    event.stopPropagation();
     closeSpotifyModal();
   }
 }, true);
+
 
 function handleMusicImageClick(event) {
   if (currentIndex() !== 1 || !pointerStart || !globeTexture) return false;
