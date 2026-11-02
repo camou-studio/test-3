@@ -562,3 +562,25 @@ a {
   height: min(690px, calc(92dvh - 65px));
   border: none;
 }
+
+/* CONTACT: Popup entspricht dem Spotify-Fenster, Kugel bleibt sichtbar. */
+.contact-modal[hidden] { display:none !important; }
+.contact-modal { position:fixed; inset:0; z-index:99999; display:flex; align-items:center; justify-content:center; padding:20px; background:transparent; }
+.contact-modal-backdrop { position:absolute; inset:0; background:transparent; }
+.contact-modal-panel { position:relative; z-index:1; width:min(520px,94vw); max-height:92dvh; overflow:auto; background:#171a18; border:1px solid rgba(255,255,255,.25); border-radius:14px; box-shadow:0 16px 55px rgba(0,0,0,.25); color:#e4ebdf; }
+.contact-modal-header { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; font:500 12px 'DM Mono',monospace; letter-spacing:.13em; }
+#contact-modal-close { width:40px; height:40px; border-radius:50%; border:1px solid rgba(255,255,255,.4); background:rgba(255,255,255,.12); color:white; font-size:28px; cursor:pointer; }
+#contact-modal-close:hover { background:rgba(255,255,255,.28); }
+.contact-modal-form { display:grid; gap:14px; padding:4px 22px 22px; }
+.contact-modal-form > p:first-child { font-size:13px; line-height:1.6; color:#b6c5aa; margin:0 0 4px; }
+.contact-modal-form > label:not(.contact-privacy) { display:grid; gap:6px; font:500 11px 'DM Mono',monospace; letter-spacing:.08em; text-transform:uppercase; }
+.contact-modal-form input:not([type=checkbox]), .contact-modal-form textarea { width:100%; padding:11px 12px; border:1px solid rgba(228,237,223,.3); border-radius:5px; background:#101411; color:#edf1e9; font:16px Manrope,sans-serif; outline-offset:2px; }
+.contact-modal-form textarea { resize:vertical; min-height:105px; }
+.contact-privacy { display:flex; align-items:flex-start; gap:10px; font-size:11px; line-height:1.5; color:#c7d1c1; }
+.contact-privacy input { margin-top:3px; accent-color:#b6c5aa; }
+.contact-privacy a { color:#edf1e9; }
+#contact-submit { padding:14px; border:1px solid rgba(228,237,223,.4); border-radius:5px; background:#29382d; color:#edf1e9; cursor:pointer; font:500 12px 'DM Mono',monospace; letter-spacing:.07em; }
+#contact-submit:hover { background:#394b3d; }
+#contact-submit:disabled { opacity:.55; cursor:wait; }
+.contact-status { margin:0; min-height:1em; font-size:11px; color:#b6c5aa; }
+@media(max-height:650px) { .contact-modal { padding:8px; } .contact-modal-panel { max-height:calc(100dvh - 16px); } .contact-modal-form { gap:9px; } }
