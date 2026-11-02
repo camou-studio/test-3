@@ -470,10 +470,30 @@ function drawSeamlessBackground(ctx, width, height) {
       // Bereichszentren sollen die jeweils
       // individuellen Farben zeigen.
       // Zwischen zwei Zentren wird weich gemischt.
-      const color = getSectionColor(
-        sectionPosition,
-        v
-      );
+      // Individuelle Bereichsfarben
+const sectionColor = getSectionColor(
+  sectionPosition,
+  v
+);
+
+// Einheitliche Polfarbe
+const poleColor = [22, 34, 26];
+
+// Am oberen und unteren Kugelpol
+// werden die Bereichsfarben sanft vereinheitlicht.
+const distanceFromPole = Math.min(v, 1 - v);
+
+// Weicher Übergang von der Polfarbe
+// zu den individuellen Bereichsfarben.
+const poleBlend = smoothstep(
+  Math.min(1, distanceFromPole / 0.24)
+);
+
+const color = mixColor(
+  poleColor,
+  sectionColor,
+  poleBlend
+);
 
       // Dezenter, umlaufend periodischer
       // Lichtverlauf. Keine Polygonkanten.
