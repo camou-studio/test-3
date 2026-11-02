@@ -1,8 +1,9 @@
+
 import * as THREE from "three";
 
 /* =========================================
    CAMOU — 3D GLOBE
-   WEICHE, NAHTLOSE BEREICHSÜBERGÄNGE
+   ANALOGER SOCIAL-KOMPASS
 ========================================= */
 
 const CONFIG = {
@@ -17,14 +18,19 @@ const CONFIG = {
   gradientSoftness: 0.85
 };
 
-const ASSETS = {
-  home: new URL("./assets/hero.jpg", import.meta.url).href,
-  homeVideo: new URL("./assets/test.webm", import.meta.url).href,
-  music: new URL("./assets/release.jpg", import.meta.url).href,
-  visuals: new URL("./assets/visuals.jpg", import.meta.url).href,
-  archive: new URL("./assets/archive.jpg", import.meta.url).href,
-  contact: new URL("./assets/contact.jpg", import.meta.url).href
-};
+const ASSETS = Object.fromEntries(
+  Object.entries({
+    home: "hero.jpg",
+    homeVideo: "test.webm",
+    music: "release.jpg",
+    visuals: "visuals.jpg",
+    archive: "archive.jpg",
+    contact: "contact.jpg"
+  }).map(([key, filename]) => [
+    key,
+    new URL("./assets/" + filename, import.meta.url).href
+  ])
+);
 
 const sections = [
   {
@@ -84,45 +90,50 @@ const sections = [
 ];
 
 /* =========================================
-   ELEMENTE
+   DOM UND THREE.JS
 ========================================= */
 
-const container = document.getElementById("globe");
+const $ = id => document.getElementById(id);
+
+const container = $("globe");
 const stage = document.querySelector(".globe-stage");
-const sectionLabel = document.getElementById("current-section");
-const sectionNumber = document.getElementById("section-number");
-const hint = document.getElementById("hint");
-const navButtons = [...document.querySelectorAll(".nav-link")];
+const navButtons = [
+  ...document.querySelectorAll(".nav-link")
+];
 
-const isMobile = window.matchMedia("(max-width:700px)").matches;
-const defaultZoom = isMobile
-  ? CONFIG.mobileZoom
-  : CONFIG.desktopZoom;
-
-/* =========================================
-   THREE.JS
-========================================= */
+const defaultZoom =
+  matchMedia("(max-width:700px)").matches
+    ? CONFIG.mobileZoom
+    : CONFIG.desktopZoom;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color("#101411");
 
 const camera = new THREE.PerspectiveCamera(
   38,
-  container.clientWidth / container.clientHeight,
+  Math.max(1, container.clientWidth) /
+    Math.max(1, container.clientHeight),
   0.1,
   100
 );
 
 let currentZoom = defaultZoom;
-camera.position.set(0, 0, currentZoom);
+camera.position.z = currentZoom;
 
 const renderer = new THREE.WebGLRenderer({
   antialias: true,
   alpha: false
 });
 
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setPixelRatio(
+  Math.min(devicePixelRatio, 2)
+);
+
+renderer.setSize(
+  container.clientWidth,
+  container.clientHeight
+);
+
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
@@ -130,16 +141,27 @@ renderer.toneMappingExposure = 1.1;
 container.appendChild(renderer.domElement);
 
 /* =========================================
-   LICHT
+   BELEUCHTUNG
 ========================================= */
 
-scene.add(new THREE.AmbientLight(0xddebd8, 1.15));
+scene.add(
+  new THREE.AmbientLight(0xddebd8, 1.15)
+);
 
-const keyLight = new THREE.DirectionalLight(0xe3f0dc, 2.1);
+const keyLight = new THREE.DirectionalLight(
+  0xe3f0dc,
+  2.1
+);
+
 keyLight.position.set(-3, 4, 5);
 scene.add(keyLight);
 
-const rimLight = new THREE.PointLight(0x9bb99a, 24, 15);
+const rimLight = new THREE.PointLight(
+  0x9bb99a,
+  24,
+  15
+);
+
 rimLight.position.set(4, -1, -3);
 scene.add(rimLight);
 
@@ -151,7 +173,11 @@ const globeGroup = new THREE.Group();
 scene.add(globeGroup);
 
 const globe = new THREE.Mesh(
-  new THREE.SphereGeometry(CONFIG.radius, 160, 112),
+  new THREE.SphereGeometry(
+    CONFIG.radius,
+    160,
+    112
+  ),
   new THREE.MeshStandardMaterial({
     color: 0xffffff,
     roughness: 0.88,
@@ -162,7 +188,11 @@ const globe = new THREE.Mesh(
 globeGroup.add(globe);
 
 const atmosphere = new THREE.Mesh(
-  new THREE.SphereGeometry(CONFIG.radius * 1.012, 96, 64),
+  new THREE.SphereGeometry(
+    CONFIG.radius * 1.012,
+    96,
+    64
+  ),
   new THREE.MeshBasicMaterial({
     color: 0xa9bd9f,
     transparent: true,
@@ -177,14 +207,17 @@ globeGroup.add(atmosphere);
    ZUSTAND
 ========================================= */
 
-let globeCanvas = null;
-let globeContext = null;
-let globeTexture = null;
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+
+const sectionStep =
+  Math.PI * 2 / sections.length;
 
 let rotationX = 0;
 let rotationY = 0;
 let velocityX = 0;
 let velocityY = 0;
+
 let isDragging = false;
 let menuAnimating = false;
 let targetRotationY = 0;
@@ -194,13 +227,15 @@ let previousY = 0;
 let lastTime = 0;
 let pointerStart = null;
 
-const pointers = new Map();
 let pinchDistance = 0;
 let pinchZoom = currentZoom;
 
-const raycaster = new THREE.Raycaster();
-const pointer = new THREE.Vector2();
-const sectionStep = Math.PI * 2 / sections.length;
+const pointers = new Map();
+
+let globeCanvas = null;
+let globeContext = null;
+let globeTexture = null;
+let baseTextureCanvas = null;
 
 /* =========================================
    HOME VIDEO
@@ -208,15 +243,17 @@ const sectionStep = Math.PI * 2 / sections.length;
 
 const homeVideo = document.createElement("video");
 
-homeVideo.src = ASSETS.homeVideo;
-homeVideo.loop = true;
-homeVideo.muted = false;
-homeVideo.volume = 1;
-homeVideo.playsInline = true;
-homeVideo.preload = "auto";
+Object.assign(homeVideo, {
+  src: ASSETS.homeVideo,
+  loop: true,
+  muted: false,
+  volume: 1,
+  playsInline: true,
+  preload: "auto"
+});
 
-let homeVideoPlaying = false;
 let homeVideoStarted = false;
+let homeVideoPlaying = false;
 let homeVideoStarting = false;
 
 /* =========================================
@@ -230,11 +267,13 @@ function loadImage(src) {
     image.onload = () => resolve(image);
 
     image.onerror = () => {
-      const fallback = document.createElement("canvas");
-      fallback.width = 1024;
-      fallback.height = 1024;
+      const canvas = document.createElement("canvas");
 
-      const ctx = fallback.getContext("2d");
+      canvas.width = 1024;
+      canvas.height = 1024;
+
+      const ctx = canvas.getContext("2d");
+
       const gradient = ctx.createLinearGradient(
         0, 0, 1024, 1024
       );
@@ -246,65 +285,68 @@ function loadImage(src) {
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, 1024, 1024);
 
-      resolve(fallback);
+      resolve(canvas);
     };
 
-    image.decoding = "async";
     image.src = src;
   });
 }
 
-function drawCoverCrop(ctx, image, x, y, w, h) {
-  const sw = image.videoWidth || image.naturalWidth || image.width;
-  const sh = image.videoHeight || image.naturalHeight || image.height;
+function cover(ctx, image, x, y, w, h) {
+  const iw =
+    image.videoWidth ||
+    image.naturalWidth ||
+    image.width;
 
-  if (!sw || !sh) return;
+  const ih =
+    image.videoHeight ||
+    image.naturalHeight ||
+    image.height;
 
-  const scale = Math.max(w / sw, h / sh);
-  const cropW = w / scale;
-  const cropH = h / scale;
+  if (!iw || !ih) return;
+
+  const scale = Math.max(w / iw, h / ih);
+  const sw = w / scale;
+  const sh = h / scale;
 
   ctx.drawImage(
     image,
-    (sw - cropW) / 2,
-    (sh - cropH) / 2,
-    cropW,
-    cropH,
-    x, y, w, h
+    (iw - sw) / 2,
+    (ih - sh) / 2,
+    sw,
+    sh,
+    x,
+    y,
+    w,
+    h
   );
 }
 
-/* =========================================
-   PLAY-BUTTON
-========================================= */
-
-function drawPlayButton(ctx, cx, cy, size) {
-  const r = size / 2;
-
+function playButton(ctx, x, y) {
   ctx.save();
 
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fillStyle = "rgba(8,13,10,.72)";
-  ctx.fill();
-  ctx.strokeStyle = "rgba(240,245,235,.85)";
+  ctx.strokeStyle = "#f0f2eb";
   ctx.lineWidth = 2;
+
+  ctx.beginPath();
+  ctx.arc(x, y, 24, 0, Math.PI * 2);
+  ctx.fill();
   ctx.stroke();
 
-  ctx.beginPath();
-  ctx.moveTo(cx - r * .22, cy - r * .38);
-  ctx.lineTo(cx + r * .42, cy);
-  ctx.lineTo(cx - r * .22, cy + r * .38);
-  ctx.closePath();
-
   ctx.fillStyle = "#f0f2eb";
-  ctx.fill();
+  ctx.beginPath();
 
+  ctx.moveTo(x - 6, y - 10);
+  ctx.lineTo(x + 11, y);
+  ctx.lineTo(x - 6, y + 10);
+
+  ctx.fill();
   ctx.restore();
 }
 
 /* =========================================
-   INDIVIDUELLE FARBWELTEN
+   FARBWELTEN
 ========================================= */
 
 const SECTION_COLORS = [
@@ -335,167 +377,139 @@ const SECTION_COLORS = [
   }
 ];
 
-/* =========================================
-   WEICHE FARBINTERPOLATION
-========================================= */
+const lerp = (a, b, t) =>
+  a + (b - a) * t;
 
-function lerp(a, b, t) {
-  return a + (b - a) * t;
-}
-
-function smoothstep(t) {
+const smooth = t => {
   t = Math.max(0, Math.min(1, t));
   return t * t * (3 - 2 * t);
-}
+};
 
-function mixColor(a, b, t) {
-  return [
-    lerp(a[0], b[0], t),
-    lerp(a[1], b[1], t),
-    lerp(a[2], b[2], t)
-  ];
-}
+const mix = (a, b, t) =>
+  a.map((value, i) =>
+    lerp(value, b[i], t)
+  );
 
-function getSectionColor(position, vertical) {
+function sectionColor(position, vertical) {
   const count = SECTION_COLORS.length;
-  const p = ((position % count) + count) % count;
 
-  const base = Math.floor(p);
-  const fraction = p - base;
+  const p =
+    ((position % count) + count) % count;
 
-  const current = SECTION_COLORS[base];
-  const next = SECTION_COLORS[(base + 1) % count];
-
-  const cosineBlend =
-    (1 - Math.cos(fraction * Math.PI)) / 2;
+  const index = Math.floor(p);
+  const fraction = p - index;
 
   const blend = lerp(
     fraction,
-    cosineBlend,
+    (1 - Math.cos(fraction * Math.PI)) / 2,
     CONFIG.gradientSoftness
   );
 
-  function verticalColor(section) {
+  const verticalColor = color => {
     if (vertical < 0.5) {
-      return mixColor(
-        section.top,
-        section.middle,
-        smoothstep(vertical * 2)
+      return mix(
+        color.top,
+        color.middle,
+        smooth(vertical * 2)
       );
     }
 
-    return mixColor(
-      section.middle,
-      section.bottom,
-      smoothstep((vertical - 0.5) * 2)
+    return mix(
+      color.middle,
+      color.bottom,
+      smooth((vertical - 0.5) * 2)
     );
-  }
+  };
 
-  const a = verticalColor(current);
-  const b = verticalColor(next);
-  const mixed = mixColor(a, b, blend);
-
-  const neutral = [26, 39, 30];
-
-  return mixColor(
-    neutral,
-    mixed,
+  return mix(
+    [26, 39, 30],
+    mix(
+      verticalColor(SECTION_COLORS[index]),
+      verticalColor(
+        SECTION_COLORS[(index + 1) % count]
+      ),
+      blend
+    ),
     CONFIG.gradientStrength
   );
 }
 
 /* =========================================
-   NAHTLOSER KUGELHINTERGRUND
+   NAHTLOSER HINTERGRUND
 ========================================= */
 
-function drawSeamlessBackground(ctx, width, height) {
-  const workWidth = 1024;
-  const workHeight = 512;
+function drawBackground(ctx, width, height) {
+  const small = document.createElement("canvas");
 
-  const offscreen = document.createElement("canvas");
-  offscreen.width = workWidth;
-  offscreen.height = workHeight;
+  small.width = 1024;
+  small.height = 512;
 
-  const offCtx = offscreen.getContext("2d");
-  const imageData = offCtx.createImageData(
-    workWidth,
-    workHeight
-  );
+  const g = small.getContext("2d");
 
-  const pixels = imageData.data;
+  const image = g.createImageData(1024, 512);
 
-  for (let y = 0; y < workHeight; y++) {
-    const v = y / (workHeight - 1);
+  for (let y = 0; y < 512; y++) {
+    const v = y / 511;
 
-    for (let x = 0; x < workWidth; x++) {
-      const u = x / workWidth;
-      const sectionPosition =
-        (u - 0.25) * sections.length;
+    for (let x = 0; x < 1024; x++) {
+      const u = x / 1024;
 
-      const sectionColor = getSectionColor(
-        sectionPosition,
+      const original = sectionColor(
+        (u - 0.25) * 5,
         v
       );
 
-      const poleColor = [22, 34, 26];
-      const distanceFromPole = Math.min(v, 1 - v);
-
-      const poleBlend = smoothstep(
-        Math.min(1, distanceFromPole / 0.24)
+      const poleMix = smooth(
+        Math.min(
+          1,
+          Math.min(v, 1 - v) / 0.24
+        )
       );
 
-      const color = mixColor(
-        poleColor,
-        sectionColor,
-        poleBlend
+      const color = mix(
+        [22, 34, 26],
+        original,
+        poleMix
       );
 
-      const wave =
-        Math.cos(2 * Math.PI * (u - 0.25));
+      const light =
+        (
+          1 +
+          0.035 *
+          Math.cos(2 * Math.PI * (u - 0.25)) *
+          Math.sin(Math.PI * v)
+        ) *
+        (
+          1 -
+          0.07 *
+          Math.pow(Math.abs(v - 0.5) * 2, 2)
+        );
 
-      const softLight =
-        1 + 0.035 * wave * Math.sin(Math.PI * v);
+      const j = (y * 1024 + x) * 4;
 
-      const verticalShade =
-        1 - 0.07 * Math.pow(Math.abs(v - 0.5) * 2, 2);
+      for (let k = 0; k < 3; k++) {
+        image.data[j + k] =
+          Math.round(color[k] * light);
+      }
 
-      const index = (y * workWidth + x) * 4;
-
-      pixels[index] = Math.round(
-        color[0] * softLight * verticalShade
-      );
-
-      pixels[index + 1] = Math.round(
-        color[1] * softLight * verticalShade
-      );
-
-      pixels[index + 2] = Math.round(
-        color[2] * softLight * verticalShade
-      );
-
-      pixels[index + 3] = 255;
+      image.data[j + 3] = 255;
     }
   }
 
-  offCtx.putImageData(imageData, 0, 0);
+  g.putImageData(image, 0, 0);
 
   ctx.save();
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(offscreen, 0, 0, width, height);
+  ctx.drawImage(small, 0, 0, width, height);
   ctx.restore();
 }
 
 /* =========================================
-   ECHOES — SOCIAL COMPASS
+   ECHOES — SOCIAL LINKS
 ========================================= */
 
 const ECHOES_LINKS = [
-  {
-    label: "INSTAGRAM",
-    angle: Math.PI,
-    url: "https://www.instagram.com/b3nn3t"
-  },
   {
     label: "SPOTIFY",
     angle: -Math.PI / 2,
@@ -510,90 +524,106 @@ const ECHOES_LINKS = [
     label: "YOUTUBE",
     angle: Math.PI / 2,
     url: "https://www.youtube.com/@b333nn3t"
+  },
+  {
+    label: "INSTAGRAM",
+    angle: Math.PI,
+    url: "https://www.instagram.com/b3nn3t"
   }
 ];
 
-let echoesAngle = 0;
+const compassRadius = 132;
+
+const compassCenterY =
+  2048 * (0.475 + 0.19 / 2);
+
 let echoesImage = null;
 
-const echoesCompassRadius = 137;
-const echoesCenterY = 2048 * (.475 + .19 / 2);
+let needleAngle = 0;
+let targetNeedleAngle = 0;
 
-/*
-   Keine Berechtigungsabfrage.
-   Nur bereits verfügbare Sensordaten verwenden.
-*/
+let sensorHeading = null;
+let lastSensorAt = 0;
+let compassLastRedraw = 0;
 
-window.addEventListener("deviceorientation", event => {
-  let heading = null;
+const wrapAngle = angle =>
+  Math.atan2(
+    Math.sin(angle),
+    Math.cos(angle)
+  );
 
-  if (
-    typeof event.webkitCompassHeading === "number" &&
-    Number.isFinite(event.webkitCompassHeading)
-  ) {
-    heading = event.webkitCompassHeading;
+/* =========================================
+   SENSORSTEUERUNG
+   KEINE BERECHTIGUNGSABFRAGE
+========================================= */
 
-  } else if (
-    event.absolute === true &&
-    typeof event.alpha === "number" &&
-    Number.isFinite(event.alpha)
-  ) {
-    heading = 360 - event.alpha;
-  }
+window.addEventListener(
+  "deviceorientation",
+  event => {
+    let heading = null;
 
-  if (heading === null) return;
-
-  const angle = -heading * Math.PI / 180;
-
-  if (
-    Math.abs(
-      Math.atan2(
-        Math.sin(angle - echoesAngle),
-        Math.cos(angle - echoesAngle)
+    if (
+      Number.isFinite(
+        event.webkitCompassHeading
       )
-    ) < .003
-  ) return;
+    ) {
+      heading = event.webkitCompassHeading;
 
-  echoesAngle = angle;
-  refreshEchoesTexture();
-}, { passive: true });
+    } else if (
+      event.absolute === true &&
+      Number.isFinite(event.alpha)
+    ) {
+      heading = 360 - event.alpha;
+    }
+
+    if (heading === null) return;
+
+    sensorHeading = heading;
+    lastSensorAt = performance.now();
+  },
+  { passive: true }
+);
 
 /* =========================================
    SOCIAL ICONS ZEICHNEN
 ========================================= */
 
-function drawSocialSymbol(ctx, label, x, y) {
+function socialIcon(ctx, label, x, y) {
   ctx.save();
   ctx.translate(x, y);
 
-  ctx.strokeStyle = "#f1f5ec";
-  ctx.fillStyle = "#f1f5ec";
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#eef5eb";
+  ctx.fillStyle = "#eef5eb";
+  ctx.lineWidth = 2.6;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
 
   if (label === "SPOTIFY") {
     for (let i = 0; i < 3; i++) {
       ctx.beginPath();
+
       ctx.arc(
         0,
-        10 + i * 3,
-        19 - i * 4,
+        8 + i * 3,
+        17 - i * 4,
         Math.PI * 1.18,
         Math.PI * 1.83
       );
+
       ctx.stroke();
     }
+  }
 
-  } else if (label === "APPLE") {
-    ctx.font = "bold 28px Arial, sans-serif";
+  if (label === "APPLE") {
+    ctx.font = "bold 27px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("♫", 0, 1);
+  }
 
-  } else if (label === "YOUTUBE") {
+  if (label === "YOUTUBE") {
     ctx.beginPath();
-    ctx.roundRect(-18, -12, 36, 24, 7);
+    ctx.roundRect(-17, -12, 34, 24, 7);
     ctx.stroke();
 
     ctx.beginPath();
@@ -602,10 +632,11 @@ function drawSocialSymbol(ctx, label, x, y) {
     ctx.lineTo(-4, 7);
     ctx.closePath();
     ctx.fill();
+  }
 
-  } else if (label === "INSTAGRAM") {
+  if (label === "INSTAGRAM") {
     ctx.beginPath();
-    ctx.roundRect(-15, -15, 30, 30, 9);
+    ctx.roundRect(-15, -15, 30, 30, 8);
     ctx.stroke();
 
     ctx.beginPath();
@@ -621,164 +652,337 @@ function drawSocialSymbol(ctx, label, x, y) {
 }
 
 /* =========================================
-   ECHOES KOMPASS ZEICHNEN
+   ANALOGEN KOMPASS ZEICHNEN
 ========================================= */
 
 function drawEchoesCompass(ctx, cx, cy) {
   ctx.save();
 
-  const halo = ctx.createRadialGradient(
-    cx, cy, 20,
-    cx, cy, 190
+  const gradient = ctx.createRadialGradient(
+    cx - 32,
+    cy - 44,
+    10,
+    cx,
+    cy,
+    185
   );
 
-  halo.addColorStop(0, "rgba(8,18,12,.72)");
-  halo.addColorStop(1, "rgba(8,18,12,.12)");
+  gradient.addColorStop(
+    0,
+    "rgba(33,49,36,.96)"
+  );
 
-  ctx.fillStyle = halo;
+  gradient.addColorStop(
+    0.7,
+    "rgba(8,17,11,.96)"
+  );
+
+  gradient.addColorStop(
+    1,
+    "rgba(4,10,7,.96)"
+  );
+
+  ctx.fillStyle = gradient;
+
   ctx.beginPath();
-  ctx.arc(cx, cy, 188, 0, Math.PI * 2);
+  ctx.arc(cx, cy, 174, 0, Math.PI * 2);
   ctx.fill();
 
-  // Nur der Ring dreht sich.
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(echoesAngle);
+  // Äusserer Ring
 
-  ctx.strokeStyle = "rgba(235,245,231,.7)";
-  ctx.lineWidth = 1.4;
+  ctx.strokeStyle =
+    "rgba(230,242,224,.65)";
 
-  ctx.beginPath();
-  ctx.arc(0, 0, 137, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.strokeStyle = "rgba(235,245,231,.23)";
+  ctx.lineWidth = 2;
 
   ctx.beginPath();
-  ctx.arc(0, 0, 124, 0, Math.PI * 2);
+  ctx.arc(cx, cy, 174, 0, Math.PI * 2);
   ctx.stroke();
 
-  ctx.restore();
+  // Innerer Ring
 
-  // Vier feste Social-Media-Icons
-  for (const item of ECHOES_LINKS) {
-    const ix =
-      cx + Math.cos(item.angle) * echoesCompassRadius;
+  ctx.strokeStyle =
+    "rgba(230,242,224,.24)";
 
-    const iy =
-      cy + Math.sin(item.angle) * echoesCompassRadius;
+  ctx.lineWidth = 1;
 
-    ctx.fillStyle = "rgba(17,26,20,.96)";
+  ctx.beginPath();
+  ctx.arc(cx, cy, 163, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // 120 Gradmarkierungen
+
+  for (let i = 0; i < 120; i++) {
+    const angle =
+      i * Math.PI / 60 - Math.PI / 2;
+
+    const major = i % 10 === 0;
+
+    const inner = major
+      ? 148
+      : i % 5 === 0
+        ? 154
+        : 159;
+
     ctx.beginPath();
-    ctx.arc(ix, iy, 27, 0, Math.PI * 2);
-    ctx.fill();
 
-    ctx.strokeStyle = "rgba(235,245,231,.7)";
-    ctx.lineWidth = 1.4;
+    ctx.moveTo(
+      cx + Math.cos(angle) * inner,
+      cy + Math.sin(angle) * inner
+    );
+
+    ctx.lineTo(
+      cx + Math.cos(angle) * 163,
+      cy + Math.sin(angle) * 163
+    );
+
+    ctx.strokeStyle = major
+      ? "rgba(240,248,237,.9)"
+      : "rgba(240,248,237,.5)";
+
+    ctx.lineWidth = major ? 1.8 : 0.8;
     ctx.stroke();
-
-    drawSocialSymbol(ctx, item.label, ix, iy);
   }
 
-  ctx.fillStyle = "#e8efe4";
-  ctx.font = "500 21px 'DM Mono', monospace";
+  // Dezente Richtungslinien
+
+  ctx.strokeStyle =
+    "rgba(220,237,216,.18)";
+
+  ctx.lineWidth = 1;
+
+  for (let i = 0; i < 8; i++) {
+    const angle = i * Math.PI / 4;
+
+    ctx.beginPath();
+
+    ctx.moveTo(
+      cx + Math.cos(angle) * 58,
+      cy + Math.sin(angle) * 58
+    );
+
+    ctx.lineTo(
+      cx + Math.cos(angle) * 115,
+      cy + Math.sin(angle) * 115
+    );
+
+    ctx.stroke();
+  }
+
+  // Gradangaben
+
+  ctx.font =
+    "500 12px 'DM Mono', monospace";
+
+  ctx.fillStyle =
+    "rgba(224,236,218,.75)";
+
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
-  ctx.fillText("E C H O E S", cx, cy, 190);
+  const degrees = [
+    ["45°", -Math.PI / 4],
+    ["135°", Math.PI / 4],
+    ["225°", 3 * Math.PI / 4],
+    ["315°", 5 * Math.PI / 4]
+  ];
+
+  for (const [text, angle] of degrees) {
+    ctx.fillText(
+      text,
+      cx + Math.cos(angle) * 136,
+      cy + Math.sin(angle) * 136
+    );
+  }
+
+  /* ROTE UND WEISSE NADEL */
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(needleAngle);
+
+  // Rote Nordspitze
+
+  ctx.fillStyle = "#ed4438";
+
+  ctx.beginPath();
+  ctx.moveTo(0, -112);
+  ctx.lineTo(-12, 8);
+  ctx.lineTo(0, -3);
+  ctx.lineTo(12, 8);
+  ctx.closePath();
+  ctx.fill();
+
+  // Weisse Südspitze
+
+  ctx.fillStyle = "#e9eee5";
+
+  ctx.beginPath();
+  ctx.moveTo(0, 112);
+  ctx.lineTo(-12, -8);
+  ctx.lineTo(0, 3);
+  ctx.lineTo(12, -8);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
+
+  /* FESTE SOCIAL ICONS */
+
+  for (const item of ECHOES_LINKS) {
+    const x =
+      cx +
+      Math.cos(item.angle) * compassRadius;
+
+    const y =
+      cy +
+      Math.sin(item.angle) * compassRadius;
+
+    ctx.fillStyle = "#142019";
+
+    ctx.beginPath();
+    ctx.arc(x, y, 27, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle =
+      "rgba(234,245,230,.75)";
+
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    socialIcon(ctx, item.label, x, y);
+  }
+
+  // Mittlere Achse
+
+  ctx.fillStyle = "#15231a";
+  ctx.strokeStyle = "#e1ebe0";
+  ctx.lineWidth = 2;
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, 9, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = "#dbe7d6";
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+  ctx.fill();
 
   ctx.restore();
 }
 
 /* =========================================
-   THEMENBEREICHE ZEICHNEN
+   BEREICHE ZEICHNEN
 ========================================= */
 
-function drawPanel(ctx, section, image, centerX, panelW, canvasH) {
-  const x = centerX - panelW / 2;
+function drawPanel(
+  ctx,
+  section,
+  image,
+  cx,
+  panelWidth,
+  canvasHeight
+) {
+  const x = cx - panelWidth / 2;
 
   ctx.save();
   ctx.beginPath();
-  ctx.rect(x, 0, panelW, canvasH);
+  ctx.rect(x, 0, panelWidth, canvasHeight);
   ctx.clip();
 
-  const contentW = panelW * 0.76;
+  const contentW = panelWidth * 0.76;
 
-  /* BUCHSTABE */
+  // CAMOU-Buchstabe
 
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillStyle = "rgba(235,242,229,.82)";
+
+  ctx.fillStyle =
+    "rgba(235,242,229,.82)";
+
   ctx.font = "300 30px Manrope, Arial";
 
   ctx.fillText(
     section.poleLetter,
-    centerX,
-    canvasH * .020
+    cx,
+    canvasHeight * 0.020
   );
 
-  /* KATEGORIE */
+  // Kategorie
 
   ctx.textBaseline = "alphabetic";
-  ctx.fillStyle = "rgba(232,239,226,.65)";
-  ctx.font = "500 21px 'DM Mono', monospace";
+
+  ctx.fillStyle =
+    "rgba(232,239,226,.65)";
+
+  ctx.font =
+    "500 21px 'DM Mono', monospace";
 
   ctx.fillText(
     section.eyebrow,
-    centerX,
-    canvasH * .24,
+    cx,
+    canvasHeight * 0.24,
     contentW
   );
 
-  /* TITEL */
+  // Titel
 
   ctx.fillStyle = "#f0f2eb";
+
   ctx.font = section.name === "MUSIC"
     ? "300 45px Manrope, Arial"
     : "300 58px Manrope, Arial";
 
-  const titleY = canvasH * .31;
+  const titleY = canvasHeight * 0.31;
 
   section.title.forEach((line, i) => {
     ctx.fillText(
       line,
-      centerX,
+      cx,
       titleY + i * 76,
       contentW
     );
   });
 
-  /* TEXT */
+  // Beschreibung
 
   const bodyStart =
-    titleY + (section.title.length - 1) * 76 + 100;
+    titleY +
+    (section.title.length - 1) * 76 +
+    100;
 
-  ctx.fillStyle = "rgba(235,239,230,.86)";
+  ctx.fillStyle =
+    "rgba(235,239,230,.86)";
+
   ctx.font = "300 22px Manrope, Arial";
 
   section.body.forEach((line, i) => {
     ctx.fillText(
       line,
-      centerX,
+      cx,
       bodyStart + i * 43,
       contentW
     );
   });
 
-  /* ZUSATZINFORMATION */
+  // Zusätzliche Informationen
 
   if (section.extra) {
-    const extraStart =
-      bodyStart + section.body.length * 43 + 35;
-
     ctx.fillStyle = "#c1d0b7";
-    ctx.font = "500 18px 'DM Mono', monospace";
+
+    ctx.font =
+      "500 18px 'DM Mono', monospace";
 
     section.extra.forEach((line, i) => {
       ctx.fillText(
         line,
-        centerX,
-        extraStart + i * 39,
+        cx,
+        bodyStart +
+          section.body.length * 43 +
+          35 +
+          i * 39,
         contentW
       );
     });
@@ -786,132 +990,205 @@ function drawPanel(ctx, section, image, centerX, panelW, canvasH) {
 
   /* BILDFENSTER */
 
-  const imageW = panelW * .56;
-  const imageH = canvasH * .19;
-  const imageX = centerX - imageW / 2;
-  const imageY = canvasH * .475;
+  const imageW = panelWidth * 0.56;
+  const imageH = canvasHeight * 0.19;
 
-  ctx.save();
+  const imageX = cx - imageW / 2;
+  const imageY = canvasHeight * 0.475;
 
-  ctx.fillStyle = "rgba(8,13,10,.9)";
-  ctx.fillRect(
-    imageX - 8,
-    imageY - 8,
-    imageW + 16,
-    imageH + 16
-  );
+  if (section.name === "ECHOES") {
+    // Echoes zeigt den analogen Kompass
+    // statt eines Foto-Rechtecks.
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(imageX, imageY, imageW, imageH);
-  ctx.clip();
-
-  if (
-    section.name === "HOME" &&
-    homeVideoStarted &&
-    homeVideo.readyState >= 2
-  ) {
-    drawCoverCrop(
-      ctx, homeVideo,
-      imageX, imageY, imageW, imageH
+    drawEchoesCompass(
+      ctx,
+      cx,
+      imageY + imageH / 2
     );
 
   } else {
-    drawCoverCrop(
-      ctx, image,
-      imageX, imageY, imageW, imageH
+    ctx.fillStyle = "rgba(8,13,10,.9)";
+
+    ctx.fillRect(
+      imageX - 8,
+      imageY - 8,
+      imageW + 16,
+      imageH + 16
     );
 
-    if (section.name === "HOME") {
-      drawPlayButton(
-        ctx,
-        centerX,
-        imageY + imageH / 2,
-        48
-      );
-    }
-  }
-
-  ctx.restore();
-
-  /* MUSIC UND CONTACT */
-
-  if (
-    section.name === "MUSIC" ||
-    section.name === "CONTACT"
-  ) {
     ctx.save();
+    ctx.beginPath();
 
-    ctx.fillStyle = "#e2ebdc";
-    ctx.font = "300 45px Manrope, Arial";
-    ctx.textAlign = "center";
-
-    ctx.fillText(
-      "ÖFFNEN  ↗",
-      centerX,
-      imageY - 23
+    ctx.rect(
+      imageX,
+      imageY,
+      imageW,
+      imageH
     );
+
+    ctx.clip();
+
+    if (
+      section.name === "HOME" &&
+      homeVideoStarted &&
+      homeVideo.readyState >= 2
+    ) {
+      cover(
+        ctx,
+        homeVideo,
+        imageX,
+        imageY,
+        imageW,
+        imageH
+      );
+
+    } else {
+      cover(
+        ctx,
+        image,
+        imageX,
+        imageY,
+        imageW,
+        imageH
+      );
+
+      if (section.name === "HOME") {
+        playButton(
+          ctx,
+          cx,
+          imageY + imageH / 2
+        );
+      }
+    }
 
     ctx.restore();
-  }
 
-  /* ECHOES */
+    if (
+      section.name === "MUSIC" ||
+      section.name === "CONTACT"
+    ) {
+      ctx.fillStyle = "#e2ebdc";
+      ctx.font = "300 45px Manrope, Arial";
 
-  if (section.name === "ECHOES") {
-    drawEchoesCompass(
-      ctx,
-      centerX,
-      imageY + imageH / 2
+      ctx.fillText(
+        "ÖFFNEN  ↗",
+        cx,
+        imageY - 23
+      );
+    }
+
+    ctx.strokeStyle =
+      "rgba(226,235,220,.48)";
+
+    ctx.lineWidth = 2;
+
+    ctx.strokeRect(
+      imageX,
+      imageY,
+      imageW,
+      imageH
     );
   }
 
-  ctx.strokeStyle = "rgba(226,235,220,.48)";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(imageX, imageY, imageW, imageH);
+  // Untere Linie
 
-  ctx.restore();
+  ctx.strokeStyle =
+    "rgba(226,235,220,.35)";
 
-  /* UNTERE LINIE */
-
-  ctx.strokeStyle = "rgba(226,235,220,.35)";
   ctx.lineWidth = 2;
 
   ctx.beginPath();
-  ctx.moveTo(centerX - contentW / 2, canvasH * .88);
-  ctx.lineTo(centerX + contentW / 2, canvasH * .88);
+
+  ctx.moveTo(
+    cx - contentW / 2,
+    canvasHeight * 0.88
+  );
+
+  ctx.lineTo(
+    cx + contentW / 2,
+    canvasHeight * 0.88
+  );
+
   ctx.stroke();
 
-  /* SEITENNUMMER */
+  // Seitennummer
 
-  ctx.fillStyle = "rgba(232,239,226,.62)";
-  ctx.font = "19px 'DM Mono', monospace";
-  ctx.textAlign = "center";
+  ctx.fillStyle =
+    "rgba(232,239,226,.62)";
+
+  ctx.font =
+    "19px 'DM Mono', monospace";
 
   ctx.fillText(
-    `${String(sections.indexOf(section) + 1).padStart(2, "0")} / 05`,
-    centerX,
-    canvasH * .92
+    `${String(
+      sections.indexOf(section) + 1
+    ).padStart(2, "0")} / 05`,
+    cx,
+    canvasHeight * 0.92
   );
 
   ctx.restore();
 }
 
 /* =========================================
-   KUGELTEXTUR ERSTELLEN
+   TEXTUR ERSTELLEN
 ========================================= */
 
+function drawWrappedPanel(ctx, index, image) {
+  const w = 4096;
+  const h = 2048;
+  const pw = w / sections.length;
+
+  const cx =
+    w * (0.25 + index / sections.length);
+
+  drawPanel(
+    ctx,
+    sections[index],
+    image,
+    cx,
+    pw,
+    h
+  );
+
+  if (cx - pw / 2 < 0) {
+    drawPanel(
+      ctx,
+      sections[index],
+      image,
+      cx + w,
+      pw,
+      h
+    );
+  }
+
+  if (cx + pw / 2 > w) {
+    drawPanel(
+      ctx,
+      sections[index],
+      image,
+      cx - w,
+      pw,
+      h
+    );
+  }
+}
+
 async function createGlobeTexture() {
-  const images = await Promise.all([
-    loadImage(ASSETS.home),
-    loadImage(ASSETS.music),
-    loadImage(ASSETS.visuals),
-    loadImage(ASSETS.archive),
-    loadImage(ASSETS.contact)
-  ]);
+  const images = await Promise.all(
+    [
+      ASSETS.home,
+      ASSETS.music,
+      ASSETS.visuals,
+      ASSETS.archive,
+      ASSETS.contact
+    ].map(loadImage)
+  );
 
   echoesImage = images[3];
 
   const canvas = document.createElement("canvas");
+
   canvas.width = 4096;
   canvas.height = 2048;
 
@@ -920,61 +1197,36 @@ async function createGlobeTexture() {
   globeCanvas = canvas;
   globeContext = ctx;
 
-  drawSeamlessBackground(
-    ctx,
-    canvas.width,
-    canvas.height
-  );
+  drawBackground(ctx, 4096, 2048);
 
-  const panelW = canvas.width / sections.length;
-
-  sections.forEach((section, index) => {
-    const center =
-      canvas.width * (.25 + index / sections.length);
-
-    const x = center - panelW / 2;
-
-    drawPanel(
-      ctx,
-      section,
-      images[index],
-      center,
-      panelW,
-      canvas.height
-    );
-
-    if (x < 0) {
-      drawPanel(
-        ctx,
-        section,
-        images[index],
-        center + canvas.width,
-        panelW,
-        canvas.height
-      );
-
-    } else if (x + panelW > canvas.width) {
-      drawPanel(
-        ctx,
-        section,
-        images[index],
-        center - canvas.width,
-        panelW,
-        canvas.height
-      );
-    }
+  images.forEach((image, index) => {
+    drawWrappedPanel(ctx, index, image);
   });
 
-  const texture = new THREE.CanvasTexture(canvas);
+  // Statische Textur speichern,
+  // damit die Kompassnadel keine Spuren erzeugt.
 
-  globeTexture = texture;
+  baseTextureCanvas =
+    document.createElement("canvas");
+
+  baseTextureCanvas.width = 4096;
+  baseTextureCanvas.height = 2048;
+
+  baseTextureCanvas
+    .getContext("2d")
+    .drawImage(canvas, 0, 0);
+
+  const texture = new THREE.CanvasTexture(
+    canvas
+  );
+
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = THREE.RepeatWrapping;
 
   texture.anisotropy =
     renderer.capabilities.getMaxAnisotropy();
 
-  texture.needsUpdate = true;
+  globeTexture = texture;
 
   return texture;
 }
@@ -983,17 +1235,8 @@ createGlobeTexture()
   .then(texture => {
     globe.material.map = texture;
     globe.material.needsUpdate = true;
-
-    console.info(
-      "CAMOU: Nahtlose Kugeltextur geladen."
-    );
   })
-  .catch(error => {
-    console.error(
-      "CAMOU: Textur konnte nicht geladen werden.",
-      error
-    );
-  });
+  .catch(console.error);
 
 /* =========================================
    HOME VIDEO AKTUALISIEREN
@@ -1002,40 +1245,42 @@ createGlobeTexture()
 function updateHomeVideoFrame() {
   if (
     !homeVideoStarted ||
-    !globeContext ||
     !globeTexture ||
     homeVideo.readyState < 2
   ) return;
 
-  const w = globeCanvas.width;
-  const h = globeCanvas.height;
-  const pw = w / sections.length;
+  const w = 4096;
+  const h = 2048;
+  const pw = w / 5;
 
-  const cx = w * .25;
-  const iw = pw * .56;
-  const ih = h * .19;
+  const cx = w * 0.25;
+  const iw = pw * 0.56;
+  const ih = h * 0.19;
+
   const ix = cx - iw / 2;
-  const iy = h * .475;
+  const iy = h * 0.475;
 
   globeContext.save();
   globeContext.beginPath();
   globeContext.rect(ix, iy, iw, ih);
   globeContext.clip();
 
-  drawCoverCrop(
+  cover(
     globeContext,
     homeVideo,
-    ix, iy, iw, ih
+    ix,
+    iy,
+    iw,
+    ih
   );
 
   globeContext.restore();
 
   if (homeVideo.paused) {
-    drawPlayButton(
+    playButton(
       globeContext,
       cx,
-      iy + ih / 2,
-      48
+      iy + ih / 2
     );
   }
 
@@ -1043,37 +1288,33 @@ function updateHomeVideoFrame() {
 }
 
 /* =========================================
-   ECHOES AKTUALISIEREN
+   KOMPASS AKTUALISIEREN
 ========================================= */
 
 function refreshEchoesTexture() {
   if (
+    !globeTexture ||
     !echoesImage ||
-    !globeContext ||
-    !globeTexture
+    !baseTextureCanvas
   ) return;
 
-  const w = globeCanvas.width;
-  const h = globeCanvas.height;
-  const pw = w / sections.length;
+  const w = 4096;
+  const h = 2048;
+  const pw = w / 5;
 
-  const center =
-    w * (.25 + 3 / sections.length);
-
-  const x = center - pw / 2;
+  const cx = w * (0.25 + 3 / 5);
+  const x = cx - pw / 2;
 
   globeContext.save();
   globeContext.beginPath();
   globeContext.rect(x, 0, pw, h);
   globeContext.clip();
 
-  if (baseBackgroundCanvas) {
-    globeContext.drawImage(
-      baseBackgroundCanvas,
-      0,
-      0
-    );
-  }
+  globeContext.drawImage(
+    baseTextureCanvas,
+    0,
+    0
+  );
 
   globeContext.restore();
 
@@ -1081,7 +1322,7 @@ function refreshEchoesTexture() {
     globeContext,
     sections[3],
     echoesImage,
-    center,
+    cx,
     pw,
     h
   );
@@ -1090,80 +1331,56 @@ function refreshEchoesTexture() {
 }
 
 /* =========================================
-   HINTERGRUND ZWISCHENSPEICHERN
-========================================= */
-
-let baseBackgroundCanvas = null;
-
-function prepareBackgroundCache() {
-  const canvas = document.createElement("canvas");
-  canvas.width = 4096;
-  canvas.height = 2048;
-
-  drawSeamlessBackground(
-    canvas.getContext("2d"),
-    canvas.width,
-    canvas.height
-  );
-
-  baseBackgroundCanvas = canvas;
-}
-
-prepareBackgroundCache();
-
-/* =========================================
    NAVIGATION
 ========================================= */
 
 function currentIndex() {
-  const raw = Math.round(-rotationY / sectionStep);
-
-  return (
-    (raw % sections.length + sections.length)
-    % sections.length
+  const index = Math.round(
+    -rotationY / sectionStep
   );
+
+  return ((index % 5) + 5) % 5;
 }
 
 function updateIndicator() {
   const index = currentIndex();
 
-  sectionLabel.textContent = sections[index].name;
+  $("current-section").textContent =
+    sections[index].name;
 
-  sectionNumber.textContent =
+  $("section-number").textContent =
     `${String(index + 1).padStart(2, "0")} / 05`;
 
   navButtons.forEach((button, i) => {
     button.classList.toggle(
       "active",
-      i === index
+      index === i
     );
   });
 }
 
 function goToSection(index) {
-  const i =
-    ((index % sections.length) + sections.length)
-    % sections.length;
+  const i = ((index % 5) + 5) % 5;
 
   rotationX = 0;
   velocityX = 0;
   velocityY = 0;
 
   isDragging = false;
+
   pointers.clear();
   pointerStart = null;
 
   stage.classList.remove("dragging");
 
   let destination = -i * sectionStep;
-  const full = Math.PI * 2;
 
   while (destination - rotationY > Math.PI) {
-    destination -= full;
+    destination -= 2 * Math.PI;
   }
 
   while (destination - rotationY < -Math.PI) {
-    destination += full;
+    destination += 2 * Math.PI;
   }
 
   targetRotationY = destination;
@@ -1172,28 +1389,24 @@ function goToSection(index) {
 
 navButtons.forEach(button => {
   button.addEventListener("click", () => {
-    goToSection(Number(button.dataset.section));
+    goToSection(
+      Number(button.dataset.section)
+    );
   });
 });
 
-document.getElementById("logo")
-  .addEventListener("click", event => {
-    event.preventDefault();
-    goToSection(0);
-  });
+$("logo").addEventListener("click", event => {
+  event.preventDefault();
+  goToSection(0);
+});
 
 /* =========================================
    SPOTIFY MODAL
 ========================================= */
 
-const spotifyModal =
-  document.getElementById("spotify-modal");
-
-const spotifyPlayer =
-  document.getElementById("spotify-modal-player");
-
-const spotifyClose =
-  document.getElementById("spotify-modal-close");
+const spotifyModal = $("spotify-modal");
+const spotifyPlayer = $("spotify-modal-player");
+const spotifyClose = $("spotify-modal-close");
 
 let spotifyOpen = false;
 
@@ -1221,11 +1434,15 @@ function openSpotifyModal() {
     "spotify-dialog-open"
   );
 
-  spotifyPlayer.src =
-    spotifyPlayer.dataset.src ||
-    "https://open.spotify.com/embed/artist/7pajHvUWNCnOPhDPyH4M6x?theme=0";
+  if (spotifyPlayer) {
+    spotifyPlayer.src =
+      spotifyPlayer.dataset.src ||
+      "https://open.spotify.com/embed/artist/7pajHvUWNCnOPhDPyH4M6x?theme=0";
+  }
 
-  spotifyClose?.focus({ preventScroll: true });
+  spotifyClose?.focus({
+    preventScroll: true
+  });
 }
 
 function closeSpotifyModal() {
@@ -1242,18 +1459,23 @@ function closeSpotifyModal() {
   spotifyPlayer?.removeAttribute("src");
 }
 
-spotifyClose?.addEventListener("click", event => {
-  event.preventDefault();
-  event.stopPropagation();
-  closeSpotifyModal();
-});
+spotifyClose?.addEventListener(
+  "click",
+  event => {
+    event.preventDefault();
+    event.stopPropagation();
+    closeSpotifyModal();
+  }
+);
 
 spotifyModal?.addEventListener(
   "pointerdown",
   event => {
     if (
       event.target === spotifyModal ||
-      event.target.closest?.("[data-close-spotify]")
+      event.target.closest?.(
+        "[data-close-spotify]"
+      )
     ) {
       closeSpotifyModal();
     }
@@ -1267,20 +1489,11 @@ spotifyModal?.addEventListener(
 const CONTACT_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycby3SfFxFDJQZNL0PxI75Z0O_HyDZl_MoC2b8jcW5PLy0kwPAuiOnK9macrxFTaUboXftg/exec";
 
-const contactModal =
-  document.getElementById("contact-modal");
-
-const contactForm =
-  document.getElementById("contact-form");
-
-const contactClose =
-  document.getElementById("contact-modal-close");
-
-const contactStatusEl =
-  document.getElementById("contact-status");
-
-const contactSubmit =
-  document.getElementById("contact-submit");
+const contactModal = $("contact-modal");
+const contactForm = $("contact-form");
+const contactClose = $("contact-modal-close");
+const contactStatus = $("contact-status");
+const contactSubmit = $("contact-submit");
 
 let contactOpen = false;
 let contactSending = false;
@@ -1309,12 +1522,13 @@ function openContactModal() {
     "contact-dialog-open"
   );
 
-  contactModal.querySelector('input[name="name"]')
+  contactModal
+    .querySelector('input[name="name"]')
     ?.focus({ preventScroll: true });
 }
 
 function closeContactModal() {
-  if (!contactModal || !contactOpen) return;
+  if (!contactModal) return;
 
   contactOpen = false;
   contactModal.hidden = true;
@@ -1325,22 +1539,30 @@ function closeContactModal() {
   );
 }
 
-contactClose?.addEventListener("click", event => {
-  event.preventDefault();
-  closeContactModal();
-});
-
-contactModal?.addEventListener("click", event => {
-  if (
-    event.target === contactModal ||
-    event.target.closest?.("[data-close-contact]")
-  ) {
+contactClose?.addEventListener(
+  "click",
+  event => {
+    event.preventDefault();
     closeContactModal();
   }
-});
+);
+
+contactModal?.addEventListener(
+  "click",
+  event => {
+    if (
+      event.target === contactModal ||
+      event.target.closest?.(
+        "[data-close-contact]"
+      )
+    ) {
+      closeContactModal();
+    }
+  }
+);
 
 /* =========================================
-   KONTAKTFORMULAR SENDEN
+   KONTAKTFORMULAR
 ========================================= */
 
 contactForm?.addEventListener(
@@ -1359,25 +1581,25 @@ contactForm?.addEventListener(
       contactSubmit.disabled = true;
     }
 
-    if (contactStatusEl) {
-      contactStatusEl.textContent =
+    if (contactStatus) {
+      contactStatus.textContent =
         "Nachricht wird übertragen …";
     }
 
-    const formData = new FormData(contactForm);
+    const data = new FormData(contactForm);
 
-    formData.set("privacy", "zugestimmt");
-    formData.set("website", "");
+    data.set("privacy", "zugestimmt");
+    data.set("website", "");
 
     try {
       await fetch(CONTACT_SCRIPT_URL, {
         method: "POST",
-        body: formData,
+        body: data,
         mode: "no-cors"
       });
 
-      if (contactStatusEl) {
-        contactStatusEl.textContent =
+      if (contactStatus) {
+        contactStatus.textContent =
           "Übertragung abgeschlossen. Empfang konnte nicht bestätigt werden.";
       }
 
@@ -1387,8 +1609,8 @@ contactForm?.addEventListener(
         error
       );
 
-      if (contactStatusEl) {
-        contactStatusEl.textContent =
+      if (contactStatus) {
+        contactStatus.textContent =
           "Übertragung fehlgeschlagen. Bitte erneut versuchen.";
       }
 
@@ -1424,22 +1646,30 @@ window.addEventListener(
 );
 
 /* =========================================
-   KLICK AUF KUGEL
+   RAYCASTING
 ========================================= */
 
-function getTexturePoint(event) {
+function texturePoint(event) {
   const rect =
     renderer.domElement.getBoundingClientRect();
 
   pointer.set(
-    ((event.clientX - rect.left) / rect.width) * 2 - 1,
-    -((event.clientY - rect.top) / rect.height) * 2 + 1
+    (event.clientX - rect.left) /
+      rect.width * 2 - 1,
+
+    -(
+      (event.clientY - rect.top) /
+      rect.height * 2 - 1
+    )
   );
 
   globeGroup.updateMatrixWorld(true);
   camera.updateMatrixWorld(true);
 
-  raycaster.setFromCamera(pointer, camera);
+  raycaster.setFromCamera(
+    pointer,
+    camera
+  );
 
   const hit =
     raycaster.intersectObject(globe)[0];
@@ -1452,102 +1682,102 @@ function getTexturePoint(event) {
   };
 }
 
-function isInsideSectionImage(point, index) {
-  if (!point) return false;
-
-  const w = 4096;
-  const h = 2048;
-  const pw = w / sections.length;
-
-  const cx = w * (.25 + index / sections.length);
-  const iw = pw * .56;
-  const ih = h * .19;
-
-  const dx =
-    ((point.x - cx + w / 2 + w) % w) - w / 2;
+function localX(point, index) {
+  const cx =
+    4096 * (0.25 + index / 5);
 
   return (
-    Math.abs(dx) <= iw / 2 &&
-    point.y >= h * .475 &&
-    point.y <= h * .475 + ih
-  );
+    (point.x - cx + 6144) % 4096
+  ) - 2048;
 }
 
-function handleMusicImageClick(event) {
-  if (currentIndex() !== 1) return false;
-
-  const point = getTexturePoint(event);
-
-  if (!isInsideSectionImage(point, 1)) {
-    return false;
-  }
-
-  openSpotifyModal();
-  return true;
-}
-
-function handleContactImageClick(event) {
-  if (currentIndex() !== 4) return false;
-
-  const point = getTexturePoint(event);
-
-  if (!isInsideSectionImage(point, 4)) {
-    return false;
-  }
-
-  openContactModal();
-  return true;
-}
-
-function handleEchoesClick(event) {
-  if (currentIndex() !== 3) return false;
-
-  const point = getTexturePoint(event);
+function inImage(point, index) {
   if (!point) return false;
 
-  const w = 4096;
-  const center =
-    w * (.25 + 3 / sections.length);
+  const pw = 4096 / 5;
 
-  const dx =
-    ((point.x - center + w / 2 + w) % w) - w / 2;
+  return (
+    Math.abs(localX(point, index)) <=
+      pw * 0.56 / 2 &&
 
-  const cy = echoesCenterY;
+    point.y >= 2048 * 0.475 &&
 
-  const chosen = ECHOES_LINKS.find(item => {
-    const x =
-      Math.cos(item.angle) * echoesCompassRadius;
-
-    const y =
-      cy + Math.sin(item.angle) * echoesCompassRadius;
-
-    return Math.hypot(
-      dx - x,
-      point.y - y
-    ) < 31;
-  });
-
-  if (!chosen) return false;
-
-  window.open(
-    chosen.url,
-    "_blank",
-    "noopener,noreferrer"
+    point.y <=
+      2048 * (0.475 + 0.19)
   );
-
-  return true;
 }
 
-function handleHomeVideoClick(event) {
-  if (currentIndex() !== 0) return false;
+/* =========================================
+   KLICK AUF KUGEL
+========================================= */
 
-  const point = getTexturePoint(event);
+function handleGlobeClick(event) {
+  const index = currentIndex();
+  const point = texturePoint(event);
 
-  if (!isInsideSectionImage(point, 0)) {
-    return false;
+  if (!point) return;
+
+  // Spotify
+
+  if (
+    index === 1 &&
+    inImage(point, 1)
+  ) {
+    openSpotifyModal();
+    return;
   }
 
-  if (homeVideoStarting) return true;
+  // Contact
+
+  if (
+    index === 4 &&
+    inImage(point, 4)
+  ) {
+    openContactModal();
+    return;
+  }
+
+  // Echoes Social-Icons
+
+  if (index === 3) {
+    const dx = localX(point, 3);
+
+    const dy =
+      point.y - compassCenterY;
+
+    const item = ECHOES_LINKS.find(link => {
+      const x =
+        Math.cos(link.angle) *
+        compassRadius;
+
+      const y =
+        Math.sin(link.angle) *
+        compassRadius;
+
+      return Math.hypot(
+        dx - x,
+        dy - y
+      ) < 31;
+    });
+
+    if (item) {
+      window.open(
+        item.url,
+        "_blank",
+        "noopener,noreferrer"
+      );
+
+      return;
+    }
+  }
+
+  // Home-Video
+
+  if (
+    index !== 0 ||
+    !inImage(point, 0) ||
+    homeVideoStarting
+  ) return;
 
   if (
     homeVideoStarted &&
@@ -1556,7 +1786,7 @@ function handleHomeVideoClick(event) {
     homeVideo.pause();
     homeVideoPlaying = false;
     updateHomeVideoFrame();
-    return true;
+    return;
   }
 
   homeVideoStarting = true;
@@ -1581,8 +1811,6 @@ function handleHomeVideoClick(event) {
         "Das HOME-Video konnte nicht gestartet werden."
       );
     });
-
-  return true;
 }
 
 /* =========================================
@@ -1598,29 +1826,39 @@ function setZoom(value) {
   camera.position.z = currentZoom;
 }
 
-document.getElementById("zoom-in")
-  .addEventListener("click", () => {
-    setZoom(currentZoom - .7);
-  });
+$("zoom-in")?.addEventListener(
+  "click",
+  event => {
+    event.stopPropagation();
+    setZoom(currentZoom - 0.7);
+  }
+);
 
-document.getElementById("zoom-out")
-  .addEventListener("click", () => {
-    setZoom(currentZoom + .7);
-  });
+$("zoom-out")?.addEventListener(
+  "click",
+  event => {
+    event.stopPropagation();
+    setZoom(currentZoom + 0.7);
+  }
+);
 
-document.getElementById("zoom-reset")
-  .addEventListener("click", () => {
+$("zoom-reset")?.addEventListener(
+  "click",
+  event => {
+    event.stopPropagation();
     setZoom(defaultZoom);
-  });
+  }
+);
 
-// Zoom-Buttons dürfen keine Kugel-Drag-Geste starten.
-const zoomControls = document.querySelector(".zoom-controls");
+const zoomControls =
+  document.querySelector(".zoom-controls");
 
 for (const type of [
   "pointerdown",
-  "pointerup",
   "pointermove",
-  "pointercancel"
+  "pointerup",
+  "pointercancel",
+  "wheel"
 ]) {
   zoomControls?.addEventListener(
     type,
@@ -1631,22 +1869,28 @@ for (const type of [
 stage.addEventListener(
   "wheel",
   event => {
+    if (
+      event.target.closest(".zoom-controls")
+    ) return;
+
     event.preventDefault();
-    setZoom(currentZoom + event.deltaY * .008);
+
+    setZoom(
+      currentZoom + event.deltaY * 0.008
+    );
   },
   { passive: false }
 );
 
 /* =========================================
-   DRAG UND TOUCH
+   MAUS UND TOUCH
 ========================================= */
 
-function distance(a, b) {
-  return Math.hypot(
+const distance = (a, b) =>
+  Math.hypot(
     a.x - b.x,
     a.y - b.y
   );
-}
 
 stage.addEventListener(
   "pointerdown",
@@ -1654,7 +1898,7 @@ stage.addEventListener(
     if (
       spotifyOpen ||
       contactOpen ||
-      event.target.closest(".zoom-controls")
+      event.target !== renderer.domElement
     ) return;
 
     pointers.set(event.pointerId, {
@@ -1667,12 +1911,9 @@ stage.addEventListener(
       y: event.clientY
     };
 
-    if (
-      event.target === renderer.domElement ||
-      event.target === container
-    ) {
-      stage.setPointerCapture(event.pointerId);
-    }
+    stage.setPointerCapture(
+      event.pointerId
+    );
 
     if (pointers.size === 1) {
       isDragging = true;
@@ -1686,7 +1927,10 @@ stage.addEventListener(
       menuAnimating = false;
 
       stage.classList.add("dragging");
-      hint.classList.add("hidden");
+
+      $("hint")?.classList.add(
+        "hidden"
+      );
 
     } else if (pointers.size === 2) {
       isDragging = false;
@@ -1694,11 +1938,13 @@ stage.addEventListener(
 
       stage.classList.remove("dragging");
 
-      const pts = [...pointers.values()];
+      const points = [
+        ...pointers.values()
+      ];
 
       pinchDistance = distance(
-        pts[0],
-        pts[1]
+        points[0],
+        points[1]
       );
 
       pinchZoom = currentZoom;
@@ -1709,7 +1955,9 @@ stage.addEventListener(
 stage.addEventListener(
   "pointermove",
   event => {
-    if (!pointers.has(event.pointerId)) return;
+    if (
+      !pointers.has(event.pointerId)
+    ) return;
 
     pointers.set(event.pointerId, {
       x: event.clientX,
@@ -1717,12 +1965,19 @@ stage.addEventListener(
     });
 
     if (pointers.size >= 2) {
-      const pts = [...pointers.values()];
-      const d = distance(pts[0], pts[1]);
+      const points = [
+        ...pointers.values()
+      ];
 
       if (pinchDistance > 0) {
         setZoom(
-          pinchZoom / (d / pinchDistance)
+          pinchZoom /
+          (
+            distance(
+              points[0],
+              points[1]
+            ) / pinchDistance
+          )
         );
       }
 
@@ -1732,15 +1987,28 @@ stage.addEventListener(
     if (!isDragging) return;
 
     const now = performance.now();
-    const dt = Math.max(1, now - lastTime);
 
-    const dx = event.clientX - previousX;
-    const dy = event.clientY - previousY;
+    const dt = Math.max(
+      1,
+      now - lastTime
+    );
 
-    const factor = Math.min(dt / 16, 2);
+    const dx =
+      event.clientX - previousX;
 
-    const mx = dx * CONFIG.dragSpeed;
-    const my = dy * CONFIG.dragSpeed;
+    const dy =
+      event.clientY - previousY;
+
+    const factor = Math.min(
+      dt / 16,
+      2
+    );
+
+    const mx =
+      dx * CONFIG.dragSpeed;
+
+    const my =
+      dy * CONFIG.dragSpeed;
 
     rotationY += mx;
     rotationX += my;
@@ -1758,115 +2026,154 @@ stage.addEventListener(
 
 function releasePointer(event) {
   if (
-    event.type === "pointerup" &&
-    pointerStart
-  ) {
-    const movement = Math.hypot(
-      event.clientX - pointerStart.x,
-      event.clientY - pointerStart.y
-    );
+    !pointers.has(event.pointerId)
+  ) return;
 
-    if (
-      movement <= 7 &&
-      !spotifyOpen &&
-      !contactOpen
-    ) {
-      if (!handleMusicImageClick(event)) {
-        if (!handleContactImageClick(event)) {
-          if (!handleEchoesClick(event)) {
-            handleHomeVideoClick(event);
-          }
-        }
-      }
-    }
+  if (
+    event.type === "pointerup" &&
+    pointerStart &&
+    distance(
+      {
+        x: event.clientX,
+        y: event.clientY
+      },
+      pointerStart
+    ) <= 7 &&
+    !spotifyOpen &&
+    !contactOpen
+  ) {
+    handleGlobeClick(event);
   }
 
   pointerStart = null;
-  pointers.delete(event.pointerId);
+
+  pointers.delete(
+    event.pointerId
+  );
 
   if (pointers.size === 0) {
     isDragging = false;
-    stage.classList.remove("dragging");
+
+    stage.classList.remove(
+      "dragging"
+    );
 
   } else if (pointers.size === 1) {
-    const p = [...pointers.values()][0];
+    const point = [
+      ...pointers.values()
+    ][0];
 
-    previousX = p.x;
-    previousY = p.y;
+    previousX = point.x;
+    previousY = point.y;
+
     lastTime = performance.now();
 
     velocityX = 0;
     velocityY = 0;
 
     isDragging = true;
-    stage.classList.add("dragging");
+
+    stage.classList.add(
+      "dragging"
+    );
   }
 }
 
-stage.addEventListener("pointerup", releasePointer);
-stage.addEventListener("pointercancel", releasePointer);
-stage.addEventListener("lostpointercapture", releasePointer);
+stage.addEventListener(
+  "pointerup",
+  releasePointer
+);
+
+stage.addEventListener(
+  "pointercancel",
+  releasePointer
+);
+
+stage.addEventListener(
+  "lostpointercapture",
+  releasePointer
+);
 
 /* =========================================
    TASTATUR
 ========================================= */
 
-window.addEventListener("keydown", event => {
-  if (spotifyOpen || contactOpen) return;
+window.addEventListener(
+  "keydown",
+  event => {
+    if (
+      spotifyOpen ||
+      contactOpen ||
+      [
+        "INPUT",
+        "TEXTAREA",
+        "SELECT"
+      ].includes(
+        document.activeElement?.tagName
+      )
+    ) return;
 
-  const tag = document.activeElement?.tagName;
+    if (event.key === "ArrowRight") {
+      goToSection(
+        currentIndex() + 1
+      );
+    }
 
-  if (
-    tag === "INPUT" ||
-    tag === "TEXTAREA"
-  ) return;
+    if (event.key === "ArrowLeft") {
+      goToSection(
+        currentIndex() - 1
+      );
+    }
 
-  if (event.key === "ArrowRight") {
-    goToSection(currentIndex() + 1);
+    if (event.key === "ArrowUp") {
+      rotationX -= 0.25;
+    }
+
+    if (event.key === "ArrowDown") {
+      rotationX += 0.25;
+    }
+
+    if (
+      event.key === "+" ||
+      event.key === "="
+    ) {
+      setZoom(currentZoom - 0.7);
+    }
+
+    if (event.key === "-") {
+      setZoom(currentZoom + 0.7);
+    }
+
+    if (event.key === "0") {
+      setZoom(defaultZoom);
+    }
   }
-
-  if (event.key === "ArrowLeft") {
-    goToSection(currentIndex() - 1);
-  }
-
-  if (event.key === "ArrowUp") {
-    rotationX -= .25;
-  }
-
-  if (event.key === "ArrowDown") {
-    rotationX += .25;
-  }
-
-  if (
-    event.key === "+" ||
-    event.key === "="
-  ) {
-    setZoom(currentZoom - .7);
-  }
-
-  if (event.key === "-") {
-    setZoom(currentZoom + .7);
-  }
-
-  if (event.key === "0") {
-    setZoom(defaultZoom);
-  }
-});
+);
 
 /* =========================================
    ANIMATION
 ========================================= */
 
-function animate() {
+let lastRotationX = 0;
+let lastRotationY = 0;
+
+let fallbackHeading = 0;
+
+function animate(now = 0) {
   requestAnimationFrame(animate);
 
-  if (!isDragging && menuAnimating) {
+  if (
+    !isDragging &&
+    menuAnimating
+  ) {
     const delta =
       targetRotationY - rotationY;
 
-    rotationY += delta * .055;
+    rotationY += delta * 0.055;
 
-    if (Math.abs(delta) < .001) {
+    if (
+      Math.abs(delta) < 0.001
+    ) {
       rotationY = targetRotationY;
       menuAnimating = false;
     }
@@ -1878,11 +2185,15 @@ function animate() {
     velocityY *= CONFIG.friction;
     velocityX *= CONFIG.friction;
 
-    if (Math.abs(velocityY) < .00004) {
+    if (
+      Math.abs(velocityY) < 0.00004
+    ) {
       velocityY = 0;
     }
 
-    if (Math.abs(velocityX) < .00004) {
+    if (
+      Math.abs(velocityX) < 0.00004
+    ) {
       velocityX = 0;
     }
   }
@@ -1897,19 +2208,83 @@ function animate() {
     updateHomeVideoFrame();
   }
 
-  renderer.render(scene, camera);
+  /* KOMPASSBEWEGUNG */
+
+  const deltaY =
+    rotationY - lastRotationY;
+
+  const deltaX =
+    rotationX - lastRotationX;
+
+  lastRotationY = rotationY;
+  lastRotationX = rotationX;
+
+  // Gestalterischer Fallback:
+  // Kugeldrehung bewegt die Nadel.
+
+  fallbackHeading +=
+    deltaY * 0.85 +
+    deltaX * 0.35;
+
+  // Sensordaten haben Vorrang,
+  // sofern sie aktuell sind.
+
+  const sensorFresh =
+    sensorHeading !== null &&
+    now - lastSensorAt < 2500;
+
+  targetNeedleAngle = sensorFresh
+    ? -sensorHeading * Math.PI / 180
+    : fallbackHeading;
+
+  const delta = wrapAngle(
+    targetNeedleAngle - needleAngle
+  );
+
+  if (
+    Math.abs(delta) > 0.001
+  ) {
+    // Sanfte Nadelbewegung
+
+    needleAngle += delta * 0.12;
+
+    // Maximal etwa 30 Aktualisierungen
+    // pro Sekunde für die Kompass-Textur.
+
+    if (
+      currentIndex() === 3 &&
+      now - compassLastRedraw > 32
+    ) {
+      refreshEchoesTexture();
+
+      compassLastRedraw = now;
+    }
+  }
+
+  renderer.render(
+    scene,
+    camera
+  );
+
   updateIndicator();
 }
 
-animate();
+requestAnimationFrame(animate);
 
 /* =========================================
    RESIZE
 ========================================= */
 
 function resize() {
-  const w = container.clientWidth;
-  const h = container.clientHeight;
+  const w = Math.max(
+    1,
+    container.clientWidth
+  );
+
+  const h = Math.max(
+    1,
+    container.clientHeight
+  );
 
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
@@ -1917,11 +2292,14 @@ function resize() {
   renderer.setSize(w, h);
 
   renderer.setPixelRatio(
-    Math.min(window.devicePixelRatio, 2)
+    Math.min(devicePixelRatio, 2)
   );
 }
 
-window.addEventListener("resize", resize);
+window.addEventListener(
+  "resize",
+  resize
+);
 
 setZoom(defaultZoom);
 updateIndicator();
