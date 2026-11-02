@@ -516,3 +516,49 @@ a {
 
 /* Music: Kugel und Seitenhintergrund bleiben beim Spotify-Dialog klar sichtbar. */
 .spotify-modal-backdrop { background: transparent !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+
+/* SPOTIFY – KUGEL IM HINTERGRUND SICHTBAR */
+
+.spotify-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: transparent !important;
+}
+
+.spotify-modal[hidden] {
+  display: none !important;
+}
+
+.spotify-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.spotify-modal-panel {
+  position: relative;
+  z-index: 1;
+  width: min(520px, 94vw);
+  max-height: 92dvh;
+  display: flex;
+  flex-direction: column;
+  background: #171a18;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 16px 55px rgba(0,0,0,0.25);
+}
+
+#spotify-modal-player {
+  display: block;
+  width: 100%;
+  height: min(690px, calc(92dvh - 65px));
+  border: none;
+}
