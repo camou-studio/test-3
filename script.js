@@ -721,15 +721,27 @@ function drawPanel(
     }
   }
 
+  
+  ctx.restore(); // Ende der Bild-Clipping-Maske
+
+  // Ausserhalb der Bildmaske zeichnen.
   if (section.name === "MUSIC") {
-    // Aufforderung oberhalb des Bildrahmens (innerhalb des Panels).
+    ctx.save();
+
     ctx.fillStyle = "#e2ebdc";
     ctx.font = "500 23px 'DM Mono', monospace";
     ctx.textAlign = "center";
-    ctx.fillText("ÖFFNEN  ↗", centerX, imageY - 23);
-    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+
+    ctx.fillText(
+      "ÖFFNEN  ↗",
+      centerX,
+      imageY - 23
+    );
+
+    ctx.restore();
   }
-  ctx.restore();
+
 
   if (section.name === "ECHOES") {
     drawEchoesCompass(ctx, centerX, imageY + imageH / 2);
