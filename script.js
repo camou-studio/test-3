@@ -13,11 +13,7 @@ const CONFIG = {
   maxZoom: 17,
   dragSpeed: 0.0052,
   friction: 0.94,
-
-  // 0 = fast einheitlich, 1 = stärkere Unterschiede
   gradientStrength: 0.75,
-
-  // Breite der weichen Übergänge (0.5 bis 1 empfohlen)
   gradientSoftness: 0.85
 };
 
@@ -308,40 +304,31 @@ function drawPlayButton(ctx, cx, cy, size) {
 }
 
 /* =========================================
-   NEU: INDIVIDUELLE FARBWELTEN
+   INDIVIDUELLE FARBWELTEN
 ========================================= */
-
-// Jeder Bereich besitzt eigene Farbnuancen.
-// Die Werte sind bewusst nah beieinander,
-// damit die Kugel harmonisch bleibt.
 
 const SECTION_COLORS = [
   {
-    // HOME — natürliches Waldgrün
     top: [24, 36, 28],
     middle: [32, 47, 36],
     bottom: [15, 25, 19]
   },
   {
-    // MUSIC — leicht kühler
     top: [20, 33, 28],
     middle: [29, 43, 37],
     bottom: [13, 23, 20]
   },
   {
-    // VISUALS — sanftes Moosgrün
     top: [27, 39, 29],
     middle: [36, 49, 36],
     bottom: [17, 26, 19]
   },
   {
-    // ECHOES — tiefes Dunkelgrün
     top: [17, 29, 23],
     middle: [26, 40, 31],
     bottom: [12, 22, 17]
   },
   {
-    // CONTACT — warmes Olivgrün
     top: [29, 39, 29],
     middle: [38, 49, 36],
     bottom: [19, 27, 20]
@@ -369,15 +356,8 @@ function mixColor(a, b, t) {
   ];
 }
 
-function wrapIndex(i, count) {
-  return ((i % count) + count) % count;
-}
-
 function getSectionColor(position, vertical) {
   const count = SECTION_COLORS.length;
-
-  // Position ist zyklisch:
-  // Nach Contact folgt wieder Home.
   const p = ((position % count) + count) % count;
 
   const base = Math.floor(p);
@@ -386,9 +366,6 @@ function getSectionColor(position, vertical) {
   const current = SECTION_COLORS[base];
   const next = SECTION_COLORS[(base + 1) % count];
 
-  // Sehr breite, harmonische Übergänge.
-  // Durch die Cosinus-Interpolation sind auch
-  // die Ableitungen an den Bereichszentren weich.
   const cosineBlend =
     (1 - Math.cos(fraction * Math.PI)) / 2;
 
@@ -416,11 +393,8 @@ function getSectionColor(position, vertical) {
 
   const a = verticalColor(current);
   const b = verticalColor(next);
-
   const mixed = mixColor(a, b, blend);
 
-  // Gemeinsame Grundfarbe verhindert zu starke
-  // Unterschiede zwischen den fünf Bereichen.
   const neutral = [26, 39, 30];
 
   return mixColor(
@@ -431,15 +405,10 @@ function getSectionColor(position, vertical) {
 }
 
 /* =========================================
-   NEU: NAHTLOSER KUGELHINTERGRUND
+   NAHTLOSER KUGELHINTERGRUND
 ========================================= */
 
 function drawSeamlessBackground(ctx, width, height) {
-  // Hintergrund wird als EINE zusammenhängende
-  // Fläche erzeugt, nicht als fünf Rechtecke.
-
-  // Kleine Arbeitsauflösung für effiziente
-  // Farbberechnung; danach weich hochskalieren.
   const workWidth = 1024;
   const workHeight = 512;
 
@@ -460,51 +429,33 @@ function drawSeamlessBackground(ctx, width, height) {
 
     for (let x = 0; x < workWidth; x++) {
       const u = x / workWidth;
-
-      // Dieselben Bereichszentren wie die
-      // bisherige CAMOU-Kugel:
-      // HOME liegt bei u = 0.25.
       const sectionPosition =
         (u - 0.25) * sections.length;
 
-      // Bereichszentren sollen die jeweils
-      // individuellen Farben zeigen.
-      // Zwischen zwei Zentren wird weich gemischt.
-      // Individuelle Bereichsfarben
-const sectionColor = getSectionColor(
-  sectionPosition,
-  v
-);
+      const sectionColor = getSectionColor(
+        sectionPosition,
+        v
+      );
 
-// Einheitliche Polfarbe
-const poleColor = [22, 34, 26];
+      const poleColor = [22, 34, 26];
+      const distanceFromPole = Math.min(v, 1 - v);
 
-// Am oberen und unteren Kugelpol
-// werden die Bereichsfarben sanft vereinheitlicht.
-const distanceFromPole = Math.min(v, 1 - v);
+      const poleBlend = smoothstep(
+        Math.min(1, distanceFromPole / 0.24)
+      );
 
-// Weicher Übergang von der Polfarbe
-// zu den individuellen Bereichsfarben.
-const poleBlend = smoothstep(
-  Math.min(1, distanceFromPole / 0.24)
-);
+      const color = mixColor(
+        poleColor,
+        sectionColor,
+        poleBlend
+      );
 
-const color = mixColor(
-  poleColor,
-  sectionColor,
-  poleBlend
-);
-
-      // Dezenter, umlaufend periodischer
-      // Lichtverlauf. Keine Polygonkanten.
       const wave =
         Math.cos(2 * Math.PI * (u - 0.25));
 
       const softLight =
-        1 + 0.035 * wave *
-        Math.sin(Math.PI * v);
+        1 + 0.035 * wave * Math.sin(Math.PI * v);
 
-      // Vertikale Abdunklung für Tiefe.
       const verticalShade =
         1 - 0.07 * Math.pow(Math.abs(v - 0.5) * 2, 2);
 
@@ -528,7 +479,6 @@ const color = mixColor(
 
   offCtx.putImageData(imageData, 0, 0);
 
-  // Hochskalieren mit weicher Interpolation.
   ctx.save();
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
@@ -537,18 +487,18 @@ const color = mixColor(
 }
 
 /* =========================================
-   ECHOES KOMPASS
+   ECHOES — SOCIAL COMPASS
 ========================================= */
 
 const ECHOES_LINKS = [
   {
     label: "INSTAGRAM",
-    angle: -Math.PI / 2,
+    angle: Math.PI,
     url: "https://www.instagram.com/b3nn3t"
   },
   {
     label: "SPOTIFY",
-    angle: Math.PI,
+    angle: -Math.PI / 2,
     url: "https://open.spotify.com/intl-de/artist/7pajHvUWNCnOPhDPyH4M6x"
   },
   {
@@ -565,86 +515,177 @@ const ECHOES_LINKS = [
 
 let echoesAngle = 0;
 let echoesImage = null;
-let echoesLastRotationX = 0;
-let echoesLastRotationY = 0;
 
 const echoesCompassRadius = 137;
+const echoesCenterY = 2048 * (.475 + .19 / 2);
+
+/*
+   Keine Berechtigungsabfrage.
+   Nur bereits verfügbare Sensordaten verwenden.
+*/
+
+window.addEventListener("deviceorientation", event => {
+  let heading = null;
+
+  if (
+    typeof event.webkitCompassHeading === "number" &&
+    Number.isFinite(event.webkitCompassHeading)
+  ) {
+    heading = event.webkitCompassHeading;
+
+  } else if (
+    event.absolute === true &&
+    typeof event.alpha === "number" &&
+    Number.isFinite(event.alpha)
+  ) {
+    heading = 360 - event.alpha;
+  }
+
+  if (heading === null) return;
+
+  const angle = -heading * Math.PI / 180;
+
+  if (
+    Math.abs(
+      Math.atan2(
+        Math.sin(angle - echoesAngle),
+        Math.cos(angle - echoesAngle)
+      )
+    ) < .003
+  ) return;
+
+  echoesAngle = angle;
+  refreshEchoesTexture();
+}, { passive: true });
+
+/* =========================================
+   SOCIAL ICONS ZEICHNEN
+========================================= */
+
+function drawSocialSymbol(ctx, label, x, y) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  ctx.strokeStyle = "#f1f5ec";
+  ctx.fillStyle = "#f1f5ec";
+  ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  if (label === "SPOTIFY") {
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.arc(
+        0,
+        10 + i * 3,
+        19 - i * 4,
+        Math.PI * 1.18,
+        Math.PI * 1.83
+      );
+      ctx.stroke();
+    }
+
+  } else if (label === "APPLE") {
+    ctx.font = "bold 28px Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("♫", 0, 1);
+
+  } else if (label === "YOUTUBE") {
+    ctx.beginPath();
+    ctx.roundRect(-18, -12, 36, 24, 7);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(-4, -7);
+    ctx.lineTo(8, 0);
+    ctx.lineTo(-4, 7);
+    ctx.closePath();
+    ctx.fill();
+
+  } else if (label === "INSTAGRAM") {
+    ctx.beginPath();
+    ctx.roundRect(-15, -15, 30, 30, 9);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(0, 0, 7, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(9, -9, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+/* =========================================
+   ECHOES KOMPASS ZEICHNEN
+========================================= */
 
 function drawEchoesCompass(ctx, cx, cy) {
   ctx.save();
 
-  ctx.fillStyle = "rgba(5,15,10,.46)";
+  const halo = ctx.createRadialGradient(
+    cx, cy, 20,
+    cx, cy, 190
+  );
+
+  halo.addColorStop(0, "rgba(8,18,12,.72)");
+  halo.addColorStop(1, "rgba(8,18,12,.12)");
+
+  ctx.fillStyle = halo;
   ctx.beginPath();
-  ctx.arc(cx, cy, 198, 0, Math.PI * 2);
+  ctx.arc(cx, cy, 188, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = "rgba(220,240,215,.45)";
-  ctx.lineWidth = 1.4;
-  ctx.beginPath();
-  ctx.arc(cx, cy, 110, 0, Math.PI * 2);
-  ctx.stroke();
-
-  for (let i = 0; i < 48; i++) {
-    const a = i * Math.PI / 24;
-    const r1 = 114;
-    const r2 = i % 4 === 0 ? 125 : 119;
-
-    ctx.beginPath();
-    ctx.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
-    ctx.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2);
-    ctx.stroke();
-  }
-
-  for (const item of ECHOES_LINKS) {
-    const x = cx + Math.cos(item.angle) * echoesCompassRadius;
-    const y = cy + Math.sin(item.angle) * echoesCompassRadius;
-
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(x, y);
-    ctx.stroke();
-
-    ctx.fillStyle = "rgba(6,17,11,.88)";
-    ctx.beginPath();
-    ctx.arc(x, y, 25, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = "rgba(235,245,230,.8)";
-    ctx.stroke();
-
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = "500 10px 'DM Mono', monospace";
-    ctx.fillStyle = "#f0f4ec";
-    ctx.fillText(item.label, x, y, 48);
-  }
-
+  // Nur der Ring dreht sich.
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(echoesAngle);
 
-  ctx.fillStyle = "#dcebd7";
-  ctx.beginPath();
-  ctx.moveTo(0, -90);
-  ctx.lineTo(10, 8);
-  ctx.lineTo(0, 0);
-  ctx.closePath();
-  ctx.fill();
+  ctx.strokeStyle = "rgba(235,245,231,.7)";
+  ctx.lineWidth = 1.4;
 
-  ctx.fillStyle = "#829e83";
   ctx.beginPath();
-  ctx.moveTo(0, 90);
-  ctx.lineTo(-10, -8);
-  ctx.lineTo(0, 0);
-  ctx.closePath();
-  ctx.fill();
+  ctx.arc(0, 0, 137, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(235,245,231,.23)";
+
+  ctx.beginPath();
+  ctx.arc(0, 0, 124, 0, Math.PI * 2);
+  ctx.stroke();
 
   ctx.restore();
 
-  ctx.fillStyle = "#f5fff0";
-  ctx.beginPath();
-  ctx.arc(cx, cy, 7, 0, Math.PI * 2);
-  ctx.fill();
+  // Vier feste Social-Media-Icons
+  for (const item of ECHOES_LINKS) {
+    const ix =
+      cx + Math.cos(item.angle) * echoesCompassRadius;
+
+    const iy =
+      cy + Math.sin(item.angle) * echoesCompassRadius;
+
+    ctx.fillStyle = "rgba(17,26,20,.96)";
+    ctx.beginPath();
+    ctx.arc(ix, iy, 27, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = "rgba(235,245,231,.7)";
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+
+    drawSocialSymbol(ctx, item.label, ix, iy);
+  }
+
+  ctx.fillStyle = "#e8efe4";
+  ctx.font = "500 21px 'DM Mono', monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  ctx.fillText("E C H O E S", cx, cy, 190);
 
   ctx.restore();
 }
@@ -657,16 +698,9 @@ function drawPanel(ctx, section, image, centerX, panelW, canvasH) {
   const x = centerX - panelW / 2;
 
   ctx.save();
-
   ctx.beginPath();
   ctx.rect(x, 0, panelW, canvasH);
   ctx.clip();
-
-  // WICHTIG:
-  // Hier wird KEIN eigener rechteckiger
-  // Hintergrund mehr gezeichnet.
-  // Der nahtlose Hintergrund liegt bereits
-  // unter sämtlichen fünf Bereichen.
 
   const contentW = panelW * 0.76;
 
@@ -689,11 +723,12 @@ function drawPanel(ctx, section, image, centerX, panelW, canvasH) {
   ctx.fillStyle = "rgba(232,239,226,.65)";
   ctx.font = "500 21px 'DM Mono', monospace";
 
-ctx.fillText(
-  section.poleLetter,
-  centerX,
-  canvasH * .075
-);
+  ctx.fillText(
+    section.eyebrow,
+    centerX,
+    canvasH * .24,
+    contentW
+  );
 
   /* TITEL */
 
@@ -780,6 +815,7 @@ ctx.fillText(
       ctx, homeVideo,
       imageX, imageY, imageW, imageH
     );
+
   } else {
     drawCoverCrop(
       ctx, image,
@@ -884,14 +920,12 @@ async function createGlobeTexture() {
   globeCanvas = canvas;
   globeContext = ctx;
 
-  // Zuerst den durchgehenden Hintergrund.
   drawSeamlessBackground(
     ctx,
     canvas.width,
     canvas.height
   );
 
-  // Danach sämtliche Inhalte darüberzeichnen.
   const panelW = canvas.width / sections.length;
 
   sections.forEach((section, index) => {
@@ -901,22 +935,32 @@ async function createGlobeTexture() {
     const x = center - panelW / 2;
 
     drawPanel(
-      ctx, section, images[index],
-      center, panelW, canvas.height
+      ctx,
+      section,
+      images[index],
+      center,
+      panelW,
+      canvas.height
     );
 
-    // Naht zwischen letztem und erstem Bereich.
     if (x < 0) {
       drawPanel(
-        ctx, section, images[index],
+        ctx,
+        section,
+        images[index],
         center + canvas.width,
-        panelW, canvas.height
+        panelW,
+        canvas.height
       );
+
     } else if (x + panelW > canvas.width) {
       drawPanel(
-        ctx, section, images[index],
+        ctx,
+        section,
+        images[index],
         center - canvas.width,
-        panelW, canvas.height
+        panelW,
+        canvas.height
       );
     }
   });
@@ -926,8 +970,10 @@ async function createGlobeTexture() {
   globeTexture = texture;
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = THREE.RepeatWrapping;
+
   texture.anisotropy =
     renderer.capabilities.getMaxAnisotropy();
+
   texture.needsUpdate = true;
 
   return texture;
@@ -1014,9 +1060,6 @@ function refreshEchoesTexture() {
   const center =
     w * (.25 + 3 / sections.length);
 
-  // Nur den Echoes-Bereich neu zeichnen.
-  // Der nahtlose Hintergrund muss dabei
-  // zunächst wiederhergestellt werden.
   const x = center - pw / 2;
 
   globeContext.save();
@@ -1024,12 +1067,11 @@ function refreshEchoesTexture() {
   globeContext.rect(x, 0, pw, h);
   globeContext.clip();
 
-  // Hintergrund aus der gespeicherten
-  // Grundtextur wiederherstellen.
   if (baseBackgroundCanvas) {
     globeContext.drawImage(
       baseBackgroundCanvas,
-      0, 0
+      0,
+      0
     );
   }
 
@@ -1044,17 +1086,6 @@ function refreshEchoesTexture() {
     h
   );
 
-  if (center + pw / 2 > w) {
-    drawPanel(
-      globeContext,
-      sections[3],
-      echoesImage,
-      center - w,
-      pw,
-      h
-    );
-  }
-
   globeTexture.needsUpdate = true;
 }
 
@@ -1064,8 +1095,6 @@ function refreshEchoesTexture() {
 
 let baseBackgroundCanvas = null;
 
-// Hintergrund einmal separat erzeugen,
-// damit der Kompass keine Bildspuren hinterlässt.
 function prepareBackgroundCache() {
   const canvas = document.createElement("canvas");
   canvas.width = 4096;
@@ -1099,6 +1128,7 @@ function updateIndicator() {
   const index = currentIndex();
 
   sectionLabel.textContent = sections[index].name;
+
   sectionNumber.textContent =
     `${String(index + 1).padStart(2, "0")} / 05`;
 
@@ -1476,15 +1506,13 @@ function handleEchoesClick(event) {
   if (!point) return false;
 
   const w = 4096;
-  const h = 2048;
-
   const center =
     w * (.25 + 3 / sections.length);
 
   const dx =
     ((point.x - center + w / 2 + w) % w) - w / 2;
 
-  const cy = h * (.475 + .19 / 2);
+  const cy = echoesCenterY;
 
   const chosen = ECHOES_LINKS.find(item => {
     const x =
@@ -1585,6 +1613,21 @@ document.getElementById("zoom-reset")
     setZoom(defaultZoom);
   });
 
+// Zoom-Buttons dürfen keine Kugel-Drag-Geste starten.
+const zoomControls = document.querySelector(".zoom-controls");
+
+for (const type of [
+  "pointerdown",
+  "pointerup",
+  "pointermove",
+  "pointercancel"
+]) {
+  zoomControls?.addEventListener(
+    type,
+    event => event.stopPropagation()
+  );
+}
+
 stage.addEventListener(
   "wheel",
   event => {
@@ -1608,7 +1651,11 @@ function distance(a, b) {
 stage.addEventListener(
   "pointerdown",
   event => {
-    if (spotifyOpen || contactOpen) return;
+    if (
+      spotifyOpen ||
+      contactOpen ||
+      event.target.closest(".zoom-controls")
+    ) return;
 
     pointers.set(event.pointerId, {
       x: event.clientX,
@@ -1620,7 +1667,12 @@ stage.addEventListener(
       y: event.clientY
     };
 
-    stage.setPointerCapture(event.pointerId);
+    if (
+      event.target === renderer.domElement ||
+      event.target === container
+    ) {
+      stage.setPointerCapture(event.pointerId);
+    }
 
     if (pointers.size === 1) {
       isDragging = true;
@@ -1843,29 +1895,6 @@ function animate() {
 
   if (homeVideoPlaying) {
     updateHomeVideoFrame();
-  }
-
-  const deltaX =
-    rotationX - echoesLastRotationX;
-
-  const deltaY =
-    rotationY - echoesLastRotationY;
-
-  echoesLastRotationX = rotationX;
-  echoesLastRotationY = rotationY;
-
-  if (
-    currentIndex() === 3 &&
-    globeTexture &&
-    (
-      Math.abs(deltaX) > .000001 ||
-      Math.abs(deltaY) > .000001
-    )
-  ) {
-    echoesAngle +=
-      deltaY * .85 + deltaX * .35;
-
-    refreshEchoesTexture();
   }
 
   renderer.render(scene, camera);
