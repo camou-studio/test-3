@@ -59,14 +59,15 @@
         </form>
       </div>
 
-      <!-- Spotify ohne zusätzlichen Bildrahmen, in der Grösse des HOME-Videofensters. -->
-      <div class="music-frame-on-globe" id="music-frame-on-globe" hidden>
-        <div class="spotify-list-viewport">
-        <iframe id="music-spotify-frame"
-          title="b3nn3t – Spotify Künstler und Songs"
-          src="https://open.spotify.com/embed/artist/7pajHvUWNCnOPhDPyH4M6x?theme=0"
-          loading="eager"
-          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
+      <!-- Spotify öffnet sich erst nach Klick auf das Bild der Kugel. -->
+      <div class="spotify-modal" id="spotify-modal" hidden role="dialog" aria-modal="true" aria-label="b3nn3t Musik auf Spotify">
+        <div class="spotify-modal-backdrop" data-close-spotify></div>
+        <div class="spotify-modal-panel" role="document">
+          <div class="spotify-modal-header">
+            <span>b3nn3t / Musik</span>
+            <button type="button" id="spotify-modal-close" aria-label="Spotify-Fenster schliessen">&times;</button>
+          </div>
+          <iframe id="spotify-modal-player" title="b3nn3t – Spotify Künstler und Songliste" data-src="https://open.spotify.com/embed/artist/7pajHvUWNCnOPhDPyH4M6x?theme=0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
         </div>
       </div>
 

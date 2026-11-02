@@ -674,7 +674,7 @@ function drawPanel(
   ctx.save();
 
   // Beim Musikbereich keinen zusätzlichen Bildrahmen hinter Spotify zeichnen.
-  if (section.name !== "MUSIC") {
+  if (true) {
     ctx.fillStyle = "rgba(8,13,10,0.9)";
     ctx.fillRect(imageX - 8, imageY - 8, imageW + 16, imageH + 16);
   }
@@ -700,7 +700,7 @@ function drawPanel(
       imageW,
       imageH
     );
-  } else if (section.name !== "MUSIC") {
+  } else {
     drawCoverCrop(
       ctx,
       image,
@@ -721,10 +721,13 @@ function drawPanel(
     }
   }
 
-  // Der echte Spotify-Player wird als HTML-Iframe exakt über diesem
-  // Bildrahmen positioniert (siehe updateMusicFramePosition).
   if (section.name === "MUSIC") {
-    // Keine dunkle Platzhalterfläche hinter dem Spotify-Player.
+    // Aufforderung oberhalb des Bildrahmens (innerhalb des Panels).
+    ctx.fillStyle = "#e2ebdc";
+    ctx.font = "500 23px 'DM Mono', monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("ÖFFNEN  ↗", centerX, imageY - 23);
+    ctx.textAlign = "left";
   }
   ctx.restore();
 
@@ -736,9 +739,7 @@ function drawPanel(
   ctx.strokeStyle = "rgba(226,235,220,0.48)";
   ctx.lineWidth = 2;
 
-  if (section.name !== "MUSIC") {
-    ctx.strokeRect(imageX, imageY, imageW, imageH);
-  }
+  ctx.strokeRect(imageX, imageY, imageW, imageH);
 
   ctx.restore();
 
@@ -1175,87 +1176,50 @@ function startHomeVideoFromClick(event) {
 
 
 /* =========================================
-   SPOTIFY DIREKT IM FRAGMENTE-BILDRAHMEN
-   Ein echtes iframe kann nicht in eine WebGL-Textur gerendert
-   werden. Deshalb folgt dieses HTML-Element der Projektion des
-   Bildrahmens auf der 3D-Kugel. Es bleibt innerhalb des Rahmens
-   bedienbar und scrollbar, ohne ein Popup zu öffnen.
+   SPOTIFY-MODAL – Bild auf der Kugel anklicken
 ========================================= */
-const musicFrame = document.getElementById("music-frame-on-globe");
-// Ein iframe kann nicht als echte WebGL-Textur auf die Kugel gemappt werden.
-// Wir projizieren daher die vier Ecken des Musik-Bildrahmens und berechnen
-// eine projektive 3D-CSS-Matrix. Dadurch kippt/verjüngt sich der Player
-// zusammen mit der Kugel, statt als flaches Rechteck stehenzubleiben.
-const MUSIC_FRAME_WIDTH = 420;
-const MUSIC_FRAME_HEIGHT = 356;
-
-function projectMusicUV(u, v) {
-  const phi = u * Math.PI * 2;
-  const theta = (1 - v) * Math.PI;
-  const point = new THREE.Vector3(
-    -CONFIG.radius * Math.cos(phi) * Math.sin(theta),
-    CONFIG.radius * Math.cos(theta),
-    CONFIG.radius * Math.sin(phi) * Math.sin(theta)
-  );
-  const normal = point.clone().normalize().transformDirection(globe.matrixWorld);
-  point.applyMatrix4(globe.matrixWorld);
-  const facing = normal.dot(camera.position.clone().sub(point).normalize());
-  point.project(camera);
-  const rect = renderer.domElement.getBoundingClientRect();
-  const stageRect = stage.getBoundingClientRect();
-  return {
-    x: rect.left - stageRect.left + (point.x + 1) * rect.width / 2,
-    y: rect.top - stageRect.top + (1 - point.y) * rect.height / 2,
-    facing
-  };
+const spotifyModal = document.getElementById("spotify-modal");
+const spotifyPlayer = document.getElementById("spotify-modal-player");
+const spotifyClose = document.getElementById("spotify-modal-close");
+let spotifyOpen = false;
+function openSpotifyModal() {
+  spotifyOpen = true;
+  spotifyModal.hidden = false;
+  if (!spotifyPlayer.hasAttribute("src")) {
+    spotifyPlayer.src = spotifyPlayer.dataset.src;
+  }
+  velocityX = 0; velocityY = 0;
+  spotifyClose.focus();
 }
-
-// Die Spotify-Oberfläche bleibt eine unverzerrte, ebene HTML-Fläche.
-// Wir übernehmen Position, Größe und eine leichte Drehung aus der Projektion
-// des Kugelrahmens. Keine Homographie: Schrift und Bedienung bleiben lesbar.
-function updateMusicFramePosition() {
-  if (!musicFrame || !globeTexture) return;
-  const cw = 4096, ch = 2048, pw = cw / sections.length;
-  const center = cw * (.25 + 1 / sections.length);
-  const iw = pw * .56, ih = ch * .19;
-  const x0 = (center - iw / 2) / cw, x1 = (center + iw / 2) / cw;
-  const y0 = 1 - (ch * .475) / ch;
-  const y1 = 1 - (ch * .475 + ih) / ch;
+function closeSpotifyModal() {
+  spotifyOpen = false;
+  spotifyModal.hidden = true;
+  // Player stoppen, wenn Dialog geschlossen wird.
+  spotifyPlayer.removeAttribute("src");
+}
+spotifyClose.addEventListener("click", closeSpotifyModal);
+spotifyModal.querySelector("[data-close-spotify]").addEventListener("click", closeSpotifyModal);
+window.addEventListener("keydown", event => {
+  if (spotifyOpen && event.key === "Escape") { event.preventDefault(); closeSpotifyModal(); }
+}, true);
+function handleMusicImageClick(event) {
+  if (currentIndex() !== 1 || !pointerStart || !globeTexture) return false;
+  if (Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) > 7) return false;
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
   globeGroup.updateMatrixWorld(true);
   camera.updateMatrixWorld(true);
-  const tl = projectMusicUV(x0, y0), tr = projectMusicUV(x1, y0);
-  const bl = projectMusicUV(x0, y1), br = projectMusicUV(x1, y1);
-  const corners = [tl, tr, bl, br];
-  if (currentIndex() !== 1 || corners.some(p => p.facing < .35)) {
-    musicFrame.hidden = true;
-    return;
-  }
-  const cx = corners.reduce((sum,p) => sum + p.x,0) / 4;
-  const cy = corners.reduce((sum,p) => sum + p.y,0) / 4;
-  const vx = ((tr.x-tl.x) + (br.x-bl.x)) / 2;
-  const vy = ((tr.y-tl.y) + (br.y-bl.y)) / 2;
-  const hx = ((bl.x-tl.x) + (br.x-tr.x)) / 2;
-  const hy = ((bl.y-tl.y) + (br.y-tr.y)) / 2;
-  const projectedW = Math.hypot(vx,vy);
-  const projectedH = Math.hypot(hx,hy);
-  if (projectedW < 45 || projectedH < 50) {
-    musicFrame.hidden = true;
-    return;
-  }
-  // Player füllt den projizierten Bildrahmen komplett aus.
-  // Originalproportionen bleiben erhalten: keine Trapez-Verzerrung.
-  // Keine Skalierung eines kleinen Players innerhalb eines grossen Rahmens.
-  // Die native iframe-Fläche erhält direkt die projizierte Grösse des HOME-Videofensters.
-  const angle = Math.atan2(vy,vx);
-  musicFrame.hidden = false;
-  musicFrame.style.width = `${projectedW * 1.12}px`;
-  musicFrame.style.height = `${projectedH * 1.18}px`;
-  musicFrame.style.transform =
-    `translate(${cx}px, ${cy}px) rotate(${angle}rad) translate(-50%, -50%)`;
-}
-// Eingaben innerhalb des Players gehören Spotify, nicht der Kugel.
-for (const name of ["pointerdown","pointermove","pointerup","wheel","touchstart","touchmove","touchend"]) {
-  musicFrame.addEventListener(name, event=>event.stopPropagation(), {passive:true});
+  raycaster.setFromCamera(pointer,camera);
+  const hit = raycaster.intersectObject(globe)[0];
+  if (!hit?.uv) return false;
+  const w=4096,h=2048,pw=w/sections.length;
+  const cx=w*(.25+1/sections.length), iw=pw*.56, ih=h*.19;
+  const x=hit.uv.x*w, y=(1-hit.uv.y)*h;
+  if (x<cx-iw/2 || x>cx+iw/2 || y<h*.475 || y>h*.475+ih) return false;
+  openSpotifyModal();
+  pointerStart=null;
+  return true;
 }
 
 /* =========================================
@@ -1431,7 +1395,7 @@ stage.addEventListener("pointermove", event => {
 
 function releasePointer(event) {
   if (event.type === "pointerup") {
-    if (!handleEchoesClick(event)) {
+    if (!handleMusicImageClick(event) && !handleEchoesClick(event)) {
       handleContactClick(event);
       startHomeVideoFromClick(event);
     } else {
@@ -1559,6 +1523,7 @@ document
 ========================================= */
 
 window.addEventListener("keydown", event => {
+  if (spotifyOpen) return;
   if (event.key === "ArrowRight") {
     goToSection(currentIndex() + 1);
   }
@@ -1645,7 +1610,7 @@ function animate() {
     refreshEchoesTexture();
   }
   renderer.render(scene, camera);
-  updateMusicFramePosition();
+
 
   updateIndicator();
 }
