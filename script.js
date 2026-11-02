@@ -1,6 +1,7 @@
+
 import * as THREE from "three";
 
-/* CAMOU — GLOBE & MOTION COMPASS */
+/* CAMOU — GLOBE & HYBRID COMPASS */
 
 const CONFIG = {
   radius: 3.2,
@@ -19,29 +20,28 @@ const ASSETS = {
   homeVideo: new URL("./assets/test.webm", import.meta.url).href,
   music: new URL("./assets/release.jpg", import.meta.url).href,
   visuals: new URL("./assets/visuals.jpg", import.meta.url).href,
-
-  // Bilder für den analogen Dia-Betrachter
   visualSlides: [
     new URL("./assets/visuals.jpg", import.meta.url).href,
     new URL("./assets/visuals-01.jpg", import.meta.url).href,
     new URL("./assets/visuals-02.jpg", import.meta.url).href,
     new URL("./assets/visuals-03.jpg", import.meta.url).href
   ],
-
   archive: new URL("./assets/archive.jpg", import.meta.url).href,
   contact: new URL("./assets/contact.jpg", import.meta.url).href
 };
 
 const sections = [
   {
-    name: "HOME", poleLetter: "c",
+    name: "HOME",
+    poleLetter: "c",
     eyebrow: "NEW PROJECT / 001",
     title: ["c a m o u"],
     body: ["Gleiche Fragen.", "Neue Perspektiven."],
     image: ASSETS.home
   },
   {
-    name: "MUSIC", poleLetter: "a",
+    name: "MUSIC",
+    poleLetter: "a",
     eyebrow: "LATEST RELEASE",
     title: ["f r a g m e n t e"],
     body: [
@@ -52,7 +52,8 @@ const sections = [
     image: ASSETS.music
   },
   {
-    name: "VISUALS", poleLetter: "m",
+    name: "VISUALS",
+    poleLetter: "m",
     eyebrow: "02 — VISUAL WORK",
     title: ["Visuals"],
     body: [
@@ -62,7 +63,8 @@ const sections = [
     image: ASSETS.visuals
   },
   {
-    name: "ECHOES", poleLetter: "o",
+    name: "ECHOES",
+    poleLetter: "o",
     eyebrow: "03 — SELECTED WORKS",
     title: ["Echoes"],
     body: [
@@ -72,7 +74,8 @@ const sections = [
     image: ASSETS.archive
   },
   {
-    name: "CONTACT", poleLetter: "u",
+    name: "CONTACT",
+    poleLetter: "u",
     eyebrow: "04 — GET IN TOUCH",
     title: ["Contact"],
     body: [
@@ -99,7 +102,8 @@ const camera = new THREE.PerspectiveCamera(
   38,
   Math.max(1, container.clientWidth) /
     Math.max(1, container.clientHeight),
-  0.1, 100
+  0.1,
+  100
 );
 
 let currentZoom = defaultZoom;
@@ -167,7 +171,6 @@ let globeCanvas, globeContext, globeTexture;
 let baseTextureCanvas;
 let echoesImage;
 
-// Dia-Betrachter
 let visualImages = [];
 let visualIndex = 0;
 let visualLeverPointer = null;
@@ -190,25 +193,18 @@ let homeVideoStarting = false;
 function loadImage(src) {
   return new Promise(resolve => {
     const img = new Image();
-
     img.onload = () => resolve(img);
-
     img.onerror = () => {
       const c = document.createElement("canvas");
       c.width = c.height = 1024;
-
       const g = c.getContext("2d");
       const grad = g.createLinearGradient(0, 0, 1024, 1024);
-
       grad.addColorStop(0, "#354a39");
       grad.addColorStop(1, "#0a1510");
-
       g.fillStyle = grad;
       g.fillRect(0, 0, 1024, 1024);
-
       resolve(c);
     };
-
     img.src = src;
   });
 }
@@ -216,43 +212,31 @@ function loadImage(src) {
 function cover(ctx, image, x, y, w, h) {
   const iw = image.videoWidth || image.naturalWidth || image.width;
   const ih = image.videoHeight || image.naturalHeight || image.height;
-
   if (!iw || !ih) return;
-
   const s = Math.max(w / iw, h / ih);
   const sw = w / s, sh = h / s;
-
   ctx.drawImage(
-    image,
-    (iw - sw) / 2,
-    (ih - sh) / 2,
-    sw,
-    sh,
-    x, y, w, h
+    image, (iw - sw) / 2, (ih - sh) / 2,
+    sw, sh, x, y, w, h
   );
 }
 
 function playButton(ctx, x, y) {
   ctx.save();
-
   ctx.beginPath();
   ctx.arc(x, y, 24, 0, Math.PI * 2);
   ctx.fillStyle = "rgba(8,13,10,.72)";
   ctx.fill();
-
   ctx.strokeStyle = "#f0f2eb";
   ctx.lineWidth = 2;
   ctx.stroke();
-
   ctx.beginPath();
   ctx.moveTo(x - 6, y - 10);
   ctx.lineTo(x + 11, y);
   ctx.lineTo(x - 6, y + 10);
   ctx.closePath();
-
   ctx.fillStyle = "#f0f2eb";
   ctx.fill();
-
   ctx.restore();
 }
 
@@ -277,15 +261,10 @@ const mix = (a,b,t) => a.map((v,i)=>lerp(v,b[i],t));
 
 function sectionColor(p,v) {
   p = ((p%5)+5)%5;
-
   const i = Math.floor(p), f = p-i;
-
   const blend = lerp(
-    f,
-    (1-Math.cos(f*Math.PI))/2,
-    CONFIG.gradientSoftness
+    f, (1-Math.cos(f*Math.PI))/2, CONFIG.gradientSoftness
   );
-
   const vertical = c => v < .5
     ? mix(c[0],c[1],smooth(v*2))
     : mix(c[1],c[2],smooth((v-.5)*2));
@@ -307,31 +286,24 @@ function drawBackground(ctx,w,h) {
 
   for(let y=0;y<512;y++) {
     const v=y/511;
-
     for(let x=0;x<1024;x++) {
       const u=x/1024;
       const pole=smooth(Math.min(1,Math.min(v,1-v)/.24));
-
       const c=mix(
         [22,34,26],
         sectionColor((u-.25)*5,v),
         pole
       );
-
       const light=(
         1+.035*Math.cos(2*Math.PI*(u-.25))*Math.sin(Math.PI*v)
       )*(1-.07*Math.pow(Math.abs(v-.5)*2,2));
-
       const j=(y*1024+x)*4;
-
       for(let k=0;k<3;k++) image.data[j+k]=c[k]*light;
-
       image.data[j+3]=255;
     }
   }
 
   g.putImageData(image,0,0);
-
   ctx.imageSmoothingEnabled=true;
   ctx.imageSmoothingQuality="high";
   ctx.drawImage(small,0,0,w,h);
@@ -367,52 +339,59 @@ let fallbackAngle=0;
 let lastGlobeX=0, lastGlobeY=0;
 let lastCompassDraw=0;
 
-/* BEWEGUNGSSENSOREN */
+/* HYBRID-SENSOREN */
 
 let motionAngle=0;
 let motionLastAt=0;
 let orientationPrevious=null;
+let orientationLastAt=0;
 let motionPreviousTime=0;
-let motionEnabled=true;
-let motionStatus="Warte auf Bewegungsdaten …";
+let sensorHeading=null;
+let headingLastAt=0;
+let sensorOptIn=false;
+let sensorStatusText="AUTOMATISCHE ERKENNUNG";
+let sensorRequestPending=false;
 
 const wrapAngle=a=>Math.atan2(Math.sin(a),Math.cos(a));
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const fresh=(timestamp,ms=2200)=>
+  timestamp>0 && performance.now()-timestamp<ms;
 
 function registerMotion(delta) {
-  if(!motionEnabled || !Number.isFinite(delta)) return;
-
+  if(!Number.isFinite(delta)) return;
   motionAngle=wrapAngle(motionAngle+clamp(delta,-.18,.18));
   motionLastAt=performance.now();
-  motionStatus="Bewegungssensor aktiv";
 }
 
 function onOrientation(event) {
-  if(!motionEnabled) return;
-
+  const now=performance.now();
   const alpha=event.alpha, beta=event.beta, gamma=event.gamma;
-
   if(![alpha,beta,gamma].some(Number.isFinite)) return;
 
+  if(Number.isFinite(event.webkitCompassHeading)) {
+    sensorHeading=event.webkitCompassHeading;
+    headingLastAt=now;
+  } else if(event.absolute===true && Number.isFinite(alpha)) {
+    const screenAngle=Number.isFinite(screen.orientation?.angle)
+      ? screen.orientation.angle : 0;
+    sensorHeading=((360-alpha+screenAngle)%360+360)%360;
+    headingLastAt=now;
+  }
+
   const current={alpha,beta,gamma};
-
   if(orientationPrevious) {
-    const difference=(a,b)=>
-      Number.isFinite(a)&&Number.isFinite(b)
-        ? wrapAngle((a-b)*Math.PI/180)
-        : 0;
-
+    const difference=(a,b)=>Number.isFinite(a)&&Number.isFinite(b)
+      ? wrapAngle((a-b)*Math.PI/180) : 0;
     const da=difference(alpha,orientationPrevious.alpha);
     const db=difference(beta,orientationPrevious.beta);
     const dg=difference(gamma,orientationPrevious.gamma);
-
     registerMotion(-da*.85+db*.35+dg*.55);
   } else {
-    motionLastAt=performance.now();
-    motionStatus="Bewegungssensor aktiv";
+    motionLastAt=now;
   }
 
   orientationPrevious=current;
+  orientationLastAt=now;
 }
 
 window.addEventListener(
@@ -424,15 +403,11 @@ window.addEventListener(
 );
 
 window.addEventListener("devicemotion",event=>{
-  if(!motionEnabled) return;
-
-  if(performance.now()-motionLastAt<450) return;
+  const now=performance.now();
+  if(now-orientationLastAt<450) return;
 
   const r=event.rotationRate;
   const a=event.accelerationIncludingGravity;
-
-  const now=performance.now();
-
   const dt=motionPreviousTime
     ? Math.min(.1,(now-motionPreviousTime)/1000)
     : .016;
@@ -440,124 +415,139 @@ window.addEventListener("devicemotion",event=>{
   motionPreviousTime=now;
 
   if(r && [r.alpha,r.beta,r.gamma].some(Number.isFinite)) {
-    const impulse=(
-      (Number(r.alpha)||0)*-.85+
-      (Number(r.beta)||0)*.35+
-      (Number(r.gamma)||0)*.55
-    )*Math.PI/180*dt;
-
-    registerMotion(impulse);
-
+    registerMotion(
+      (
+        (Number(r.alpha)||0)*-.85+
+        (Number(r.beta)||0)*.35+
+        (Number(r.gamma)||0)*.55
+      )*Math.PI/180*dt
+    );
   } else if(a && Number.isFinite(a.x) && Number.isFinite(a.y)) {
     registerMotion(clamp((a.x-a.y)*.0005,-.012,.012));
   }
 },{passive:true});
 
-/* OPTIONALER SENSOR-SCHALTER */
+function sensorMode() {
+  if(fresh(headingLastAt)) return "KOMPASS AKTIV";
+  if(fresh(motionLastAt)) return "BEWEGUNG AKTIV";
+  return "KUGELSTEUERUNG";
+}
 
-const sensorBox=document.createElement("div");
-sensorBox.id="camou-motion-control";
-sensorBox.hidden=true;
+/* SENSOR-KÄSTCHEN AUF DER KUGEL */
 
-sensorBox.innerHTML=`
-  <label style="display:flex;align-items:center;gap:9px;
-                justify-content:center;cursor:pointer">
-    <input type="checkbox" id="camou-motion-check"
-           style="width:17px;height:17px;accent-color:#b6c5aa">
-    <span>Bewegungssteuerung aktivieren</span>
-  </label>
-  <div id="camou-motion-status" role="status"
-       style="font-size:10px;color:#b6c5aa;margin-top:8px">
-    Warte auf Bewegungsdaten …
-  </div>
-`;
+const SENSOR_CONTROL={
+  y:compassCenterY+224,
+  checkboxX:-145,
+  labelX:-117,
+  hitLeft:-175,
+  hitRight:175,
+  hitTop:-25,
+  hitBottom:34
+};
 
-Object.assign(sensorBox.style,{
-  position:"absolute",
-  left:"50%",
-  bottom:"9%",
-  transform:"translateX(-50%)",
-  zIndex:"30",
-  background:"rgba(13,22,16,.90)",
-  border:"1px solid rgba(220,235,215,.3)",
-  borderRadius:"9px",
-  padding:"10px 14px",
-  color:"#edf1e9",
-  fontFamily:"DM Mono, monospace",
-  fontSize:"11px",
-  textAlign:"center",
-  maxWidth:"90%",
-  width:"max-content",
-  touchAction:"manipulation"
-});
+function drawSensorControl(ctx,cx) {
+  const cy=SENSOR_CONTROL.y;
+  ctx.save();
 
-stage.appendChild(sensorBox);
+  ctx.textBaseline="middle";
+  ctx.textAlign="left";
+  ctx.lineWidth=1.5;
+  ctx.strokeStyle="rgba(225,238,220,.7)";
+  ctx.strokeRect(cx+SENSOR_CONTROL.checkboxX,cy-9,18,18);
 
-const sensorCheck=$("camou-motion-check");
-const sensorStatus=$("camou-motion-status");
-
-sensorBox.addEventListener("pointerdown",e=>e.stopPropagation());
-sensorBox.addEventListener("pointerup",e=>e.stopPropagation());
-sensorBox.addEventListener("pointermove",e=>e.stopPropagation());
-
-sensorCheck.addEventListener("change",async()=>{
-  if(!sensorCheck.checked) {
-    motionEnabled=false;
-    orientationPrevious=null;
-    sensorStatus.textContent="Bewegungssteuerung pausiert";
-    return;
+  if(sensorOptIn) {
+    ctx.strokeStyle="#d9e8d2";
+    ctx.lineWidth=2.5;
+    ctx.beginPath();
+    ctx.moveTo(cx+SENSOR_CONTROL.checkboxX+3,cy);
+    ctx.lineTo(cx+SENSOR_CONTROL.checkboxX+8,cy+5);
+    ctx.lineTo(cx+SENSOR_CONTROL.checkboxX+16,cy-6);
+    ctx.stroke();
   }
 
-  motionEnabled=true;
+  ctx.font="500 14px 'DM Mono', monospace";
+  ctx.fillStyle="#e5eee0";
+  ctx.fillText("SENSOR AKTIVIEREN",cx+SENSOR_CONTROL.labelX,cy);
+
+  ctx.font="12px 'DM Mono', monospace";
+  ctx.textAlign="center";
+  ctx.fillStyle="rgba(193,211,188,.82)";
+  ctx.fillText(sensorStatusText,cx,cy+31,350);
+  ctx.restore();
+}
+
+function requestSensorAccess() {
+  if(sensorRequestPending) return;
+
+  sensorOptIn=!sensorOptIn;
+
+  if(!sensorOptIn) {
+    sensorStatusText="AUTOMATISCHE ERKENNUNG";
+    refreshEchoesTexture();
+    return;
+  }
 
   if(!isSecureContext) {
-    sensorCheck.checked=false;
-    motionEnabled=false;
-    sensorStatus.textContent="HTTPS erforderlich";
+    sensorOptIn=false;
+    sensorStatusText="HTTPS ERFORDERLICH";
+    refreshEchoesTexture();
     return;
   }
 
-  try {
-    const requests=[];
+  const requests=[];
 
-    if(typeof DeviceOrientationEvent!=="undefined" &&
-       typeof DeviceOrientationEvent.requestPermission==="function") {
+  try {
+    if(
+      typeof DeviceOrientationEvent!=="undefined" &&
+      typeof DeviceOrientationEvent.requestPermission==="function"
+    ) {
       requests.push(DeviceOrientationEvent.requestPermission());
     }
 
-    if(typeof DeviceMotionEvent!=="undefined" &&
-       typeof DeviceMotionEvent.requestPermission==="function") {
+    if(
+      typeof DeviceMotionEvent!=="undefined" &&
+      typeof DeviceMotionEvent.requestPermission==="function"
+    ) {
       requests.push(DeviceMotionEvent.requestPermission());
     }
+  } catch(error) {
+    sensorOptIn=false;
+    sensorStatusText="FREIGABE NICHT MÖGLICH";
+    refreshEchoesTexture();
+    return;
+  }
 
-    if(requests.length) {
-      const results=await Promise.all(requests);
+  if(!requests.length) {
+    sensorStatusText="SENSOREN WERDEN GEPRÜFT";
+    refreshEchoesTexture();
+    return;
+  }
 
-      if(results.every(r=>r!=="granted")) {
-        sensorCheck.checked=false;
-        motionEnabled=false;
-        sensorStatus.textContent="Sensorfreigabe abgelehnt";
-        return;
-      }
+  sensorRequestPending=true;
+  sensorStatusText="FREIGABE WIRD GEPRÜFT";
+  refreshEchoesTexture();
+
+  Promise.allSettled(requests).then(results=>{
+    sensorRequestPending=false;
+
+    if(results.some(
+      r=>r.status==="fulfilled" && r.value==="granted"
+    )) {
+      sensorStatusText="WARTE AUF SENSORDATEN";
+    } else {
+      sensorOptIn=false;
+      sensorStatusText="FREIGABE NICHT ERTEILT";
     }
 
-    orientationPrevious=null;
-    sensorStatus.textContent="Warte auf Bewegungsdaten …";
+    refreshEchoesTexture();
+  });
+}
 
-  } catch(error) {
-    console.warn("CAMOU Sensorfreigabe:",error);
-    sensorCheck.checked=false;
-    motionEnabled=false;
-    sensorStatus.textContent="Freigabe nicht verfügbar";
-  }
-});
-
-/* SOCIAL-SYMBOLE */
+/* SOCIAL-ICONS */
 
 function socialIcon(ctx,name,x,y) {
   ctx.save();
   ctx.translate(x,y);
-
   ctx.strokeStyle="#eef5eb";
   ctx.fillStyle="#eef5eb";
   ctx.lineWidth=2.7;
@@ -570,34 +560,28 @@ function socialIcon(ctx,name,x,y) {
       ctx.arc(0,8+i*3,17-i*4,Math.PI*1.18,Math.PI*1.83);
       ctx.stroke();
     }
-
   } else if(name==="APPLE") {
     ctx.font="bold 28px Arial";
     ctx.textAlign="center";
     ctx.textBaseline="middle";
     ctx.fillText("♫",0,1);
-
   } else if(name==="YOUTUBE") {
     ctx.beginPath();
     ctx.roundRect(-17,-12,34,24,7);
     ctx.stroke();
-
     ctx.beginPath();
     ctx.moveTo(-4,-7);
     ctx.lineTo(8,0);
     ctx.lineTo(-4,7);
     ctx.closePath();
     ctx.fill();
-
   } else if(name==="INSTAGRAM") {
     ctx.beginPath();
     ctx.roundRect(-15,-15,30,30,8);
     ctx.stroke();
-
     ctx.beginPath();
     ctx.arc(0,0,7,0,Math.PI*2);
     ctx.stroke();
-
     ctx.beginPath();
     ctx.arc(9,-9,2,0,Math.PI*2);
     ctx.fill();
@@ -605,6 +589,8 @@ function socialIcon(ctx,name,x,y) {
 
   ctx.restore();
 }
+
+/* ANALOGEN KOMPASS ZEICHNEN */
 
 function drawCompass(ctx,cx,cy) {
   ctx.save();
@@ -644,7 +630,6 @@ function drawCompass(ctx,cx,cy) {
     ctx.strokeStyle=major
       ?"rgba(240,248,237,.9)"
       :"rgba(240,248,237,.5)";
-
     ctx.lineWidth=major?1.8:.8;
     ctx.stroke();
   }
@@ -654,7 +639,6 @@ function drawCompass(ctx,cx,cy) {
 
   for(let i=0;i<8;i++) {
     const a=i*Math.PI/4;
-
     ctx.beginPath();
     ctx.moveTo(cx+Math.cos(a)*58,cy+Math.sin(a)*58);
     ctx.lineTo(cx+Math.cos(a)*115,cy+Math.sin(a)*115);
@@ -682,7 +666,6 @@ function drawCompass(ctx,cx,cy) {
   ctx.lineTo(12,-8);
   ctx.closePath();
   ctx.fill();
-
   ctx.restore();
 
   for(const item of SOCIAL) {
@@ -704,7 +687,6 @@ function drawCompass(ctx,cx,cy) {
   ctx.fillStyle="#15231a";
   ctx.strokeStyle="#e1ebe0";
   ctx.lineWidth=2;
-
   ctx.beginPath();
   ctx.arc(cx,cy,9,0,Math.PI*2);
   ctx.fill();
@@ -714,16 +696,13 @@ function drawCompass(ctx,cx,cy) {
   ctx.beginPath();
   ctx.arc(cx,cy,3,0,Math.PI*2);
   ctx.fill();
-
   ctx.restore();
 }
 
-/* VISUALS — ANALOGER 3D-DIA-BETRACHTER */
+/* VISUALS — ANALOGER DIA-BETRACHTER */
 
 function drawVisualViewer(ctx,cx,iy,iw,ih) {
   const image=visualImages[visualIndex];
-
-  // Abmessungen des Gehäuses
   const bodyW=iw+112;
   const bodyH=ih+100;
   const bodyX=cx-bodyW/2;
@@ -735,8 +714,6 @@ function drawVisualViewer(ctx,cx,iy,iw,ih) {
   const windowH=ih-26;
 
   ctx.save();
-
-  // Weicher Schatten unter dem Gerät
   ctx.shadowColor="rgba(0,0,0,.65)";
   ctx.shadowBlur=28;
   ctx.shadowOffsetY=13;
@@ -744,7 +721,6 @@ function drawVisualViewer(ctx,cx,iy,iw,ih) {
   const bodyGradient=ctx.createLinearGradient(
     bodyX,bodyY,bodyX+bodyW,bodyY+bodyH
   );
-
   bodyGradient.addColorStop(0,"#75816e");
   bodyGradient.addColorStop(.18,"#3b493b");
   bodyGradient.addColorStop(.55,"#1b281f");
@@ -755,12 +731,9 @@ function drawVisualViewer(ctx,cx,iy,iw,ih) {
   ctx.beginPath();
   ctx.roundRect(bodyX,bodyY,bodyW,bodyH,30);
   ctx.fill();
-
   ctx.restore();
 
-  // Äussere Gehäusekante
   ctx.save();
-
   ctx.strokeStyle="rgba(218,231,207,.65)";
   ctx.lineWidth=3;
   ctx.beginPath();
@@ -773,11 +746,9 @@ function drawVisualViewer(ctx,cx,iy,iw,ih) {
   ctx.roundRect(bodyX+7,bodyY+7,bodyW-14,bodyH-14,24);
   ctx.stroke();
 
-  // Lichtkante oben
   const highlight=ctx.createLinearGradient(
     bodyX,bodyY,bodyX+bodyW,bodyY
   );
-
   highlight.addColorStop(0,"rgba(255,255,255,0)");
   highlight.addColorStop(.25,"rgba(255,255,255,.2)");
   highlight.addColorStop(.75,"rgba(255,255,255,.08)");
@@ -790,7 +761,6 @@ function drawVisualViewer(ctx,cx,iy,iw,ih) {
   ctx.lineTo(bodyX+bodyW-32,bodyY+10);
   ctx.stroke();
 
-  // Schrauben am Gehäuse
   const screwPositions=[
     [bodyX+22,bodyY+22],
     [bodyX+bodyW-22,bodyY+22],
@@ -815,11 +785,9 @@ function drawVisualViewer(ctx,cx,iy,iw,ih) {
     ctx.stroke();
   }
 
-  // Dunkler Rahmen um das Sichtfenster
   const frameGradient=ctx.createLinearGradient(
     windowX,windowY,windowX,windowY+windowH
   );
-
   frameGradient.addColorStop(0,"#050906");
   frameGradient.addColorStop(.5,"#18231b");
   frameGradient.addColorStop(1,"#050906");
@@ -836,9 +804,7 @@ function drawVisualViewer(ctx,cx,iy,iw,ih) {
   ctx.lineWidth=3;
   ctx.stroke();
 
-  // Bild im Sichtfenster
   ctx.save();
-
   ctx.beginPath();
   ctx.roundRect(windowX,windowY,windowW,windowH,5);
   ctx.clip();
@@ -850,39 +816,32 @@ function drawVisualViewer(ctx,cx,iy,iw,ih) {
     ctx.fillRect(windowX,windowY,windowW,windowH);
   }
 
-  // Leichte Glasreflexion
   const reflection=ctx.createLinearGradient(
     windowX,windowY,
     windowX+windowW*.8,windowY+windowH
   );
-
   reflection.addColorStop(0,"rgba(255,255,255,.18)");
   reflection.addColorStop(.35,"rgba(255,255,255,.035)");
   reflection.addColorStop(1,"rgba(255,255,255,0)");
 
   ctx.fillStyle=reflection;
   ctx.fillRect(windowX,windowY,windowW,windowH);
-
   ctx.restore();
 
-  // Kleine Beschriftung
   ctx.fillStyle="rgba(224,235,216,.8)";
   ctx.font="bold 15px 'DM Mono', monospace";
   ctx.textAlign="center";
   ctx.textBaseline="middle";
   ctx.fillText("CAMOU  /  VIEWER",cx,bodyY+bodyH-15);
 
-  // Seitlicher mechanischer Zughebel
   const leverX=cx+iw/2+43;
   const leverTop=iy+15;
   const leverBottom=iy+ih*.72;
   const knobY=leverTop+(leverBottom-leverTop)*.30;
 
-  // Vertikale Führung
   const railGradient=ctx.createLinearGradient(
     leverX-9,0,leverX+9,0
   );
-
   railGradient.addColorStop(0,"#090e0a");
   railGradient.addColorStop(.5,"#a7b39b");
   railGradient.addColorStop(1,"#101711");
@@ -899,11 +858,9 @@ function drawVisualViewer(ctx,cx,iy,iw,ih) {
   ctx.lineWidth=1.5;
   ctx.stroke();
 
-  // Hebelstange
   const rodGradient=ctx.createLinearGradient(
     leverX-5,0,leverX+5,0
   );
-
   rodGradient.addColorStop(0,"#151c16");
   rodGradient.addColorStop(.45,"#d1d9c9");
   rodGradient.addColorStop(1,"#394638");
@@ -916,12 +873,10 @@ function drawVisualViewer(ctx,cx,iy,iw,ih) {
   ctx.lineTo(leverX,knobY+38);
   ctx.stroke();
 
-  // Hebelknauf
   const knobGradient=ctx.createRadialGradient(
     leverX-8,knobY-8,2,
     leverX,knobY,23
   );
-
   knobGradient.addColorStop(0,"#dce5d3");
   knobGradient.addColorStop(.35,"#82917a");
   knobGradient.addColorStop(.75,"#354333");
@@ -936,13 +891,11 @@ function drawVisualViewer(ctx,cx,iy,iw,ih) {
   ctx.lineWidth=2;
   ctx.stroke();
 
-  // Kleiner Richtungspfeil unter dem Hebel
   ctx.fillStyle="rgba(226,237,218,.85)";
   ctx.font="bold 22px Arial";
   ctx.textAlign="center";
   ctx.fillText("↓",leverX,leverBottom+25);
 
-  // Bildnummer
   ctx.fillStyle="#dce7d5";
   ctx.font="bold 15px 'DM Mono', monospace";
   ctx.textAlign="right";
@@ -957,7 +910,6 @@ function drawVisualViewer(ctx,cx,iy,iw,ih) {
 
 function advanceVisualSlide() {
   if(!visualImages.length) return;
-
   visualIndex=(visualIndex+1)%visualImages.length;
   refreshVisualsTexture();
 }
@@ -965,9 +917,7 @@ function advanceVisualSlide() {
 function refreshVisualsTexture() {
   if(!globeTexture || !baseTextureCanvas || !globeContext) return;
 
-  const w=4096;
-  const h=2048;
-  const pw=w/5;
+  const w=4096,h=2048,pw=w/5;
   const cx=w*(.25+2/5);
   const x=cx-pw/2;
 
@@ -975,13 +925,10 @@ function refreshVisualsTexture() {
   globeContext.beginPath();
   globeContext.rect(x,0,pw,h);
   globeContext.clip();
-
   globeContext.drawImage(baseTextureCanvas,0,0);
-
   globeContext.restore();
 
   drawWrappedPanel(globeContext,2,visualImages[visualIndex]);
-
   globeTexture.needsUpdate=true;
 }
 
@@ -989,7 +936,6 @@ function refreshVisualsTexture() {
 
 function drawPanel(ctx,section,image,cx,pw,h) {
   const x=cx-pw/2;
-
   ctx.save();
   ctx.beginPath();
   ctx.rect(x,0,pw,h);
@@ -1014,7 +960,6 @@ function drawPanel(ctx,section,image,cx,pw,h) {
     :"300 58px Manrope, Arial";
 
   const titleY=h*.31;
-
   section.title.forEach((line,i)=>{
     ctx.fillText(line,cx,titleY+i*76,contentW);
   });
@@ -1023,7 +968,6 @@ function drawPanel(ctx,section,image,cx,pw,h) {
 
   ctx.fillStyle="rgba(235,239,230,.86)";
   ctx.font="300 22px Manrope, Arial";
-
   section.body.forEach((line,i)=>{
     ctx.fillText(line,cx,bodyStart+i*43,contentW);
   });
@@ -1031,7 +975,6 @@ function drawPanel(ctx,section,image,cx,pw,h) {
   if(section.extra) {
     ctx.fillStyle="#c1d0b7";
     ctx.font="500 18px 'DM Mono', monospace";
-
     section.extra.forEach((line,i)=>{
       ctx.fillText(
         line,cx,
@@ -1046,6 +989,7 @@ function drawPanel(ctx,section,image,cx,pw,h) {
 
   if(section.name==="ECHOES") {
     drawCompass(ctx,cx,iy+ih/2);
+    drawSensorControl(ctx,cx);
 
   } else if(section.name==="VISUALS") {
     drawVisualViewer(ctx,cx,iy,iw,ih);
@@ -1065,12 +1009,10 @@ function drawPanel(ctx,section,image,cx,pw,h) {
       cover(ctx,homeVideo,ix,iy,iw,ih);
     } else {
       cover(ctx,image,ix,iy,iw,ih);
-
       if(section.name==="HOME") {
         playButton(ctx,cx,iy+ih/2);
       }
     }
-
     ctx.restore();
 
     if(section.name==="MUSIC" ||
@@ -1094,12 +1036,10 @@ function drawPanel(ctx,section,image,cx,pw,h) {
 
   ctx.fillStyle="rgba(232,239,226,.62)";
   ctx.font="19px 'DM Mono', monospace";
-
   ctx.fillText(
     `${String(sections.indexOf(section)+1).padStart(2,"0")} / 05`,
     cx,h*.92
   );
-
   ctx.restore();
 }
 
@@ -1129,7 +1069,6 @@ async function createGlobeTexture() {
     ].map(loadImage)
   );
 
-  // Alle vier Bilder des Dia-Betrachters laden
   visualImages=await Promise.all(
     ASSETS.visualSlides.map(loadImage)
   );
@@ -1140,7 +1079,6 @@ async function createGlobeTexture() {
   globeCanvas=document.createElement("canvas");
   globeCanvas.width=4096;
   globeCanvas.height=2048;
-
   globeContext=globeCanvas.getContext("2d");
 
   drawBackground(globeContext,4096,2048);
@@ -1156,7 +1094,6 @@ async function createGlobeTexture() {
   baseTextureCanvas=document.createElement("canvas");
   baseTextureCanvas.width=4096;
   baseTextureCanvas.height=2048;
-
   baseTextureCanvas.getContext("2d")
     .drawImage(globeCanvas,0,0);
 
@@ -1189,15 +1126,12 @@ function updateHomeVideoFrame() {
   globeContext.beginPath();
   globeContext.rect(ix,iy,iw,ih);
   globeContext.clip();
-
   cover(globeContext,homeVideo,ix,iy,iw,ih);
-
   globeContext.restore();
 
   if(homeVideo.paused) {
     playButton(globeContext,cx,iy+ih/2);
   }
-
   globeTexture.needsUpdate=true;
 }
 
@@ -1212,13 +1146,10 @@ function refreshEchoesTexture() {
   globeContext.beginPath();
   globeContext.rect(x,0,pw,h);
   globeContext.clip();
-
   globeContext.drawImage(baseTextureCanvas,0,0);
-
   globeContext.restore();
 
   drawPanel(globeContext,sections[3],echoesImage,cx,pw,h);
-
   globeTexture.needsUpdate=true;
 }
 
@@ -1233,24 +1164,12 @@ function updateIndicator() {
   const index=currentIndex();
 
   $("current-section").textContent=sections[index].name;
-
   $("section-number").textContent=
     `${String(index+1).padStart(2,"0")} / 05`;
 
   navButtons.forEach((b,i)=>{
     b.classList.toggle("active",i===index);
   });
-
-  sensorBox.hidden=
-    index!==3 || spotifyOpen || contactOpen;
-
-  if(index===3 && sensorCheck.checked) {
-    sensorStatus.textContent=motionStatus;
-
-  } else if(index===3 && !sensorCheck.checked &&
-            performance.now()-motionLastAt<2000) {
-    sensorStatus.textContent="Sensor automatisch verfügbar";
-  }
 }
 
 function goToSection(index) {
@@ -1261,11 +1180,9 @@ function goToSection(index) {
   isDragging=false;
   pointers.clear();
   pointerStart=null;
-
   stage.classList.remove("dragging");
 
   let dest=-i*sectionStep;
-
   while(dest-rotationY>Math.PI) dest-=2*Math.PI;
   while(dest-rotationY< -Math.PI) dest+=2*Math.PI;
 
@@ -1304,7 +1221,6 @@ function openSpotifyModal() {
 
   spotifyModal.hidden=false;
   spotifyModal.style.display="flex";
-
   document.body.classList.add("spotify-dialog-open");
 
   if(spotifyPlayer) {
@@ -1321,9 +1237,7 @@ function closeSpotifyModal() {
   spotifyOpen=false;
   spotifyModal.hidden=true;
   spotifyModal.style.display="none";
-
   document.body.classList.remove("spotify-dialog-open");
-
   spotifyPlayer?.removeAttribute("src");
 }
 
@@ -1362,7 +1276,6 @@ function openContactModal() {
 
   contactModal.hidden=false;
   contactModal.style.display="flex";
-
   document.body.classList.add("contact-dialog-open");
 
   contactModal.querySelector('input[name="name"]')
@@ -1375,7 +1288,6 @@ function closeContactModal() {
   contactOpen=false;
   contactModal.hidden=true;
   contactModal.style.display="none";
-
   document.body.classList.remove("contact-dialog-open");
 }
 
@@ -1394,7 +1306,6 @@ contactForm?.addEventListener("submit",async e=>{
   if(contactSending || !contactForm.reportValidity()) return;
 
   contactSending=true;
-
   if(contactSubmit) contactSubmit.disabled=true;
 
   if(contactStatus) {
@@ -1402,7 +1313,6 @@ contactForm?.addEventListener("submit",async e=>{
   }
 
   const data=new FormData(contactForm);
-
   data.set("privacy","zugestimmt");
   data.set("website","");
 
@@ -1417,17 +1327,13 @@ contactForm?.addEventListener("submit",async e=>{
       contactStatus.textContent=
         "Übertragung abgeschlossen. Empfang nicht bestätigt.";
     }
-
   } catch(error) {
     console.error(error);
-
     if(contactStatus) {
       contactStatus.textContent="Übertragung fehlgeschlagen.";
     }
-
   } finally {
     contactSending=false;
-
     if(contactSubmit) contactSubmit.disabled=false;
   }
 });
@@ -1444,11 +1350,9 @@ function texturePoint(e) {
 
   globeGroup.updateMatrixWorld(true);
   camera.updateMatrixWorld(true);
-
   raycaster.setFromCamera(pointer,camera);
 
   const hit=raycaster.intersectObject(globe)[0];
-
   if(!hit?.uv) return null;
 
   return {
@@ -1469,7 +1373,6 @@ function inImage(point,index) {
     point.y<=2048*(.475+.19);
 }
 
-// Prüft, ob der Klick auf dem seitlichen Dia-Hebel liegt
 function isOnVisualLever(point) {
   if(!point) return false;
 
@@ -1490,7 +1393,6 @@ function isOnVisualLever(point) {
 function handleGlobeClick(e) {
   const index=currentIndex();
   const p=texturePoint(e);
-
   if(!p) return;
 
   if(index===1 && inImage(p,1)) {
@@ -1506,6 +1408,17 @@ function handleGlobeClick(e) {
   if(index===3) {
     const dx=localX(p,3);
     const dy=p.y-compassCenterY;
+    const controlY=p.y-SENSOR_CONTROL.y;
+
+    if(
+      dx>=SENSOR_CONTROL.hitLeft &&
+      dx<=SENSOR_CONTROL.hitRight &&
+      controlY>=SENSOR_CONTROL.hitTop &&
+      controlY<=SENSOR_CONTROL.hitBottom
+    ) {
+      requestSensorAccess();
+      return;
+    }
 
     const link=SOCIAL.find(s=>
       Math.hypot(
@@ -1536,7 +1449,6 @@ function handleGlobeClick(e) {
     homeVideoPlaying=true;
     homeVideoStarting=false;
     updateHomeVideoFrame();
-
   }).catch(error=>{
     homeVideoStarting=false;
     console.error(error);
@@ -1544,7 +1456,7 @@ function handleGlobeClick(e) {
   });
 }
 
-/* ZOOM — DESKTOP UND MOBILE */
+/* ZOOM */
 
 function setZoom(value) {
   currentZoom=clamp(value,CONFIG.minZoom,CONFIG.maxZoom);
@@ -1573,10 +1485,8 @@ for(const type of [
 
 stage.addEventListener("wheel",e=>{
   if(e.target.closest(".zoom-controls")) return;
-
   e.preventDefault();
   setZoom(currentZoom+e.deltaY*.008);
-
 },{passive:false});
 
 /* DRAG UND TOUCH */
@@ -1587,7 +1497,6 @@ stage.addEventListener("pointerdown",e=>{
   if(spotifyOpen || contactOpen ||
      e.target!==renderer.domElement) return;
 
-  // Zuerst prüfen, ob der Dia-Hebel berührt wurde
   if(currentIndex()===2) {
     const p=texturePoint(e);
 
@@ -1595,17 +1504,13 @@ stage.addEventListener("pointerdown",e=>{
       visualLeverPointer=e.pointerId;
       visualLeverMoved=false;
       visualLeverStartY=e.clientY;
-
       stage.setPointerCapture(e.pointerId);
-
-      // Keine normale Globus-Drehung starten
       return;
     }
   }
 
   pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
   pointerStart={x:e.clientX,y:e.clientY};
-
   stage.setPointerCapture(e.pointerId);
 
   if(pointers.size===1) {
@@ -1613,50 +1518,39 @@ stage.addEventListener("pointerdown",e=>{
     previousX=e.clientX;
     previousY=e.clientY;
     lastTime=performance.now();
-
     velocityX=velocityY=0;
     menuAnimating=false;
-
     stage.classList.add("dragging");
     $("hint")?.classList.add("hidden");
-
   } else if(pointers.size===2) {
     isDragging=false;
     pointerStart=null;
-
     const pts=[...pointers.values()];
-
     pinchDistance=distance(pts[0],pts[1]);
     pinchZoom=currentZoom;
   }
 });
 
 stage.addEventListener("pointermove",e=>{
-  // Dia-Hebel: nach unten ziehen
   if(visualLeverPointer===e.pointerId) {
     const pullDistance=e.clientY-visualLeverStartY;
-
     if(pullDistance>35 && !visualLeverMoved) {
       visualLeverMoved=true;
       advanceVisualSlide();
     }
-
     return;
   }
 
   if(!pointers.has(e.pointerId)) return;
-
   pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
 
   if(pointers.size>=2) {
     const pts=[...pointers.values()];
-
     if(pinchDistance>0) {
       setZoom(
         pinchZoom/(distance(pts[0],pts[1])/pinchDistance)
       );
     }
-
     return;
   }
 
@@ -1664,49 +1558,45 @@ stage.addEventListener("pointermove",e=>{
 
   const now=performance.now();
   const dt=Math.max(1,now-lastTime);
-
   const dx=e.clientX-previousX;
   const dy=e.clientY-previousY;
-
   const factor=Math.min(dt/16,2);
-
   const mx=dx*CONFIG.dragSpeed;
   const my=dy*CONFIG.dragSpeed;
 
   rotationY+=mx;
   rotationX+=my;
-
   velocityY=mx/factor;
   velocityX=my/factor;
 
   previousX=e.clientX;
   previousY=e.clientY;
   lastTime=now;
-
   updateIndicator();
 });
 
 function releasePointer(e) {
-  // Dia-Hebel separat behandeln
   if(visualLeverPointer===e.pointerId) {
     if(e.type==="pointerup" && !visualLeverMoved) {
-      // Ein einfacher Klick schaltet ebenfalls weiter
       advanceVisualSlide();
     }
-
     visualLeverPointer=null;
     visualLeverMoved=false;
-
     return;
   }
 
   if(!pointers.has(e.pointerId)) return;
 
-  if(e.type==="pointerup" && pointerStart &&
-     distance(
-       {x:e.clientX,y:e.clientY},
-       pointerStart
-     )<=7 && !spotifyOpen && !contactOpen) {
+  if(
+    e.type==="pointerup" &&
+    pointerStart &&
+    distance(
+      {x:e.clientX,y:e.clientY},
+      pointerStart
+    )<=7 &&
+    !spotifyOpen &&
+    !contactOpen
+  ) {
     handleGlobeClick(e);
   }
 
@@ -1716,14 +1606,11 @@ function releasePointer(e) {
   if(pointers.size===0) {
     isDragging=false;
     stage.classList.remove("dragging");
-
   } else if(pointers.size===1) {
     const p=[...pointers.values()][0];
-
     previousX=p.x;
     previousY=p.y;
     lastTime=performance.now();
-
     velocityX=velocityY=0;
     isDragging=true;
   }
@@ -1744,9 +1631,11 @@ window.addEventListener("keydown",e=>{
 
   if(spotifyOpen || contactOpen) return;
 
-  if(["INPUT","TEXTAREA","SELECT"].includes(
-    document.activeElement?.tagName
-  )) return;
+  if(
+    ["INPUT","TEXTAREA","SELECT"].includes(
+      document.activeElement?.tagName
+    )
+  ) return;
 
   if(e.key==="ArrowRight") goToSection(currentIndex()+1);
   if(e.key==="ArrowLeft") goToSection(currentIndex()-1);
@@ -1757,6 +1646,8 @@ window.addEventListener("keydown",e=>{
   if(e.key==="0") setZoom(defaultZoom);
 });
 
+let lastShownSensorMode="";
+
 /* ANIMATION */
 
 function animate(now=0) {
@@ -1764,14 +1655,12 @@ function animate(now=0) {
 
   if(!isDragging && menuAnimating) {
     const delta=targetRotationY-rotationY;
-
     rotationY+=delta*.055;
 
     if(Math.abs(delta)<.001) {
       rotationY=targetRotationY;
       menuAnimating=false;
     }
-
   } else if(!isDragging) {
     rotationY+=velocityY;
     rotationX+=velocityX;
@@ -1797,14 +1686,19 @@ function animate(now=0) {
     fallbackAngle+deltaY*.85+deltaX*.35
   );
 
-  const sensorFresh=
-    motionEnabled &&
-    motionLastAt>0 &&
-    performance.now()-motionLastAt<2500;
+  const mode=sensorMode();
 
-  targetNeedleAngle=sensorFresh
-    ? motionAngle
-    : fallbackAngle;
+  targetNeedleAngle=mode==="KOMPASS AKTIV"
+    ? -sensorHeading*Math.PI/180
+    : mode==="BEWEGUNG AKTIV"
+      ? motionAngle
+      : fallbackAngle;
+
+  if(mode!==lastShownSensorMode) {
+    lastShownSensorMode=mode;
+    sensorStatusText=mode;
+    refreshEchoesTexture();
+  }
 
   const delta=wrapAngle(targetNeedleAngle-needleAngle);
 
@@ -1831,7 +1725,6 @@ function resize() {
 
   camera.aspect=w/h;
   camera.updateProjectionMatrix();
-
   renderer.setSize(w,h);
   renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 }
