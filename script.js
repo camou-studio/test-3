@@ -2,21 +2,24 @@ import * as THREE from "three";
 
 /* =========================================
    CAMOU — 3D GLOBE
+   WEICHE, NAHTLOSE BEREICHSÜBERGÄNGE
 ========================================= */
 
 const CONFIG = {
   radius: 3.2,
   desktopZoom: 8.2,
   mobileZoom: 8.4,
-  minZoom: 6.0,
+  minZoom: 6,
   maxZoom: 17,
   dragSpeed: 0.0052,
-  friction: 0.94
-};
+  friction: 0.94,
 
-/* =========================================
-   ASSETS
-========================================= */
+  // 0 = fast einheitlich, 1 = stärkere Unterschiede
+  gradientStrength: 0.75,
+
+  // Breite der weichen Übergänge (0.5 bis 1 empfohlen)
+  gradientSoftness: 0.85
+};
 
 const ASSETS = {
   home: new URL("./assets/hero.jpg", import.meta.url).href,
@@ -27,20 +30,13 @@ const ASSETS = {
   contact: new URL("./assets/contact.jpg", import.meta.url).href
 };
 
-/* =========================================
-   BEREICHE
-========================================= */
-
 const sections = [
   {
     name: "HOME",
     poleLetter: "c",
     eyebrow: "NEW PROJECT / 001",
     title: ["c a m o u"],
-    body: [
-      "Gleiche Fragen.",
-      "Neue Perspektiven."
-    ],
+    body: ["Gleiche Fragen.", "Neue Perspektiven."],
     image: ASSETS.home
   },
   {
@@ -92,7 +88,7 @@ const sections = [
 ];
 
 /* =========================================
-   DOM
+   ELEMENTE
 ========================================= */
 
 const container = document.getElementById("globe");
@@ -103,7 +99,9 @@ const hint = document.getElementById("hint");
 const navButtons = [...document.querySelectorAll(".nav-link")];
 
 const isMobile = window.matchMedia("(max-width:700px)").matches;
-const defaultZoom = isMobile ? CONFIG.mobileZoom : CONFIG.desktopZoom;
+const defaultZoom = isMobile
+  ? CONFIG.mobileZoom
+  : CONFIG.desktopZoom;
 
 /* =========================================
    THREE.JS
@@ -156,17 +154,15 @@ scene.add(rimLight);
 const globeGroup = new THREE.Group();
 scene.add(globeGroup);
 
-const globeGeometry = new THREE.SphereGeometry(
-  CONFIG.radius, 160, 112
+const globe = new THREE.Mesh(
+  new THREE.SphereGeometry(CONFIG.radius, 160, 112),
+  new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 0.88,
+    metalness: 0.02
+  })
 );
 
-const globeMaterial = new THREE.MeshStandardMaterial({
-  color: 0xffffff,
-  roughness: 0.88,
-  metalness: 0.02
-});
-
-const globe = new THREE.Mesh(globeGeometry, globeMaterial);
 globeGroup.add(globe);
 
 const atmosphere = new THREE.Mesh(
@@ -208,14 +204,14 @@ let pinchZoom = currentZoom;
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
-
 const sectionStep = Math.PI * 2 / sections.length;
 
 /* =========================================
-   VIDEO
+   HOME VIDEO
 ========================================= */
 
 const homeVideo = document.createElement("video");
+
 homeVideo.src = ASSETS.homeVideo;
 homeVideo.loop = true;
 homeVideo.muted = false;
@@ -243,7 +239,9 @@ function loadImage(src) {
       fallback.height = 1024;
 
       const ctx = fallback.getContext("2d");
-      const gradient = ctx.createLinearGradient(0, 0, 1024, 1024);
+      const gradient = ctx.createLinearGradient(
+        0, 0, 1024, 1024
+      );
 
       gradient.addColorStop(0, "#354a39");
       gradient.addColorStop(0.5, "#1b3025");
@@ -276,10 +274,7 @@ function drawCoverCrop(ctx, image, x, y, w, h) {
     (sh - cropH) / 2,
     cropW,
     cropH,
-    x,
-    y,
-    w,
-    h
+    x, y, w, h
   );
 }
 
@@ -309,6 +304,215 @@ function drawPlayButton(ctx, cx, cy, size) {
   ctx.fillStyle = "#f0f2eb";
   ctx.fill();
 
+  ctx.restore();
+}
+
+/* =========================================
+   NEU: INDIVIDUELLE FARBWELTEN
+========================================= */
+
+// Jeder Bereich besitzt eigene Farbnuancen.
+// Die Werte sind bewusst nah beieinander,
+// damit die Kugel harmonisch bleibt.
+
+const SECTION_COLORS = [
+  {
+    // HOME — natürliches Waldgrün
+    top: [24, 36, 28],
+    middle: [32, 47, 36],
+    bottom: [15, 25, 19]
+  },
+  {
+    // MUSIC — leicht kühler
+    top: [20, 33, 28],
+    middle: [29, 43, 37],
+    bottom: [13, 23, 20]
+  },
+  {
+    // VISUALS — sanftes Moosgrün
+    top: [27, 39, 29],
+    middle: [36, 49, 36],
+    bottom: [17, 26, 19]
+  },
+  {
+    // ECHOES — tiefes Dunkelgrün
+    top: [17, 29, 23],
+    middle: [26, 40, 31],
+    bottom: [12, 22, 17]
+  },
+  {
+    // CONTACT — warmes Olivgrün
+    top: [29, 39, 29],
+    middle: [38, 49, 36],
+    bottom: [19, 27, 20]
+  }
+];
+
+/* =========================================
+   WEICHE FARBINTERPOLATION
+========================================= */
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function smoothstep(t) {
+  t = Math.max(0, Math.min(1, t));
+  return t * t * (3 - 2 * t);
+}
+
+function mixColor(a, b, t) {
+  return [
+    lerp(a[0], b[0], t),
+    lerp(a[1], b[1], t),
+    lerp(a[2], b[2], t)
+  ];
+}
+
+function wrapIndex(i, count) {
+  return ((i % count) + count) % count;
+}
+
+function getSectionColor(position, vertical) {
+  const count = SECTION_COLORS.length;
+
+  // Position ist zyklisch:
+  // Nach Contact folgt wieder Home.
+  const p = ((position % count) + count) % count;
+
+  const base = Math.floor(p);
+  const fraction = p - base;
+
+  const current = SECTION_COLORS[base];
+  const next = SECTION_COLORS[(base + 1) % count];
+
+  // Sehr breite, harmonische Übergänge.
+  // Durch die Cosinus-Interpolation sind auch
+  // die Ableitungen an den Bereichszentren weich.
+  const cosineBlend =
+    (1 - Math.cos(fraction * Math.PI)) / 2;
+
+  const blend = lerp(
+    fraction,
+    cosineBlend,
+    CONFIG.gradientSoftness
+  );
+
+  function verticalColor(section) {
+    if (vertical < 0.5) {
+      return mixColor(
+        section.top,
+        section.middle,
+        smoothstep(vertical * 2)
+      );
+    }
+
+    return mixColor(
+      section.middle,
+      section.bottom,
+      smoothstep((vertical - 0.5) * 2)
+    );
+  }
+
+  const a = verticalColor(current);
+  const b = verticalColor(next);
+
+  const mixed = mixColor(a, b, blend);
+
+  // Gemeinsame Grundfarbe verhindert zu starke
+  // Unterschiede zwischen den fünf Bereichen.
+  const neutral = [26, 39, 30];
+
+  return mixColor(
+    neutral,
+    mixed,
+    CONFIG.gradientStrength
+  );
+}
+
+/* =========================================
+   NEU: NAHTLOSER KUGELHINTERGRUND
+========================================= */
+
+function drawSeamlessBackground(ctx, width, height) {
+  // Hintergrund wird als EINE zusammenhängende
+  // Fläche erzeugt, nicht als fünf Rechtecke.
+
+  // Kleine Arbeitsauflösung für effiziente
+  // Farbberechnung; danach weich hochskalieren.
+  const workWidth = 1024;
+  const workHeight = 512;
+
+  const offscreen = document.createElement("canvas");
+  offscreen.width = workWidth;
+  offscreen.height = workHeight;
+
+  const offCtx = offscreen.getContext("2d");
+  const imageData = offCtx.createImageData(
+    workWidth,
+    workHeight
+  );
+
+  const pixels = imageData.data;
+
+  for (let y = 0; y < workHeight; y++) {
+    const v = y / (workHeight - 1);
+
+    for (let x = 0; x < workWidth; x++) {
+      const u = x / workWidth;
+
+      // Dieselben Bereichszentren wie die
+      // bisherige CAMOU-Kugel:
+      // HOME liegt bei u = 0.25.
+      const sectionPosition =
+        (u - 0.25) * sections.length;
+
+      // Bereichszentren sollen die jeweils
+      // individuellen Farben zeigen.
+      // Zwischen zwei Zentren wird weich gemischt.
+      const color = getSectionColor(
+        sectionPosition,
+        v
+      );
+
+      // Dezenter, umlaufend periodischer
+      // Lichtverlauf. Keine Polygonkanten.
+      const wave =
+        Math.cos(2 * Math.PI * (u - 0.25));
+
+      const softLight =
+        1 + 0.035 * wave *
+        Math.sin(Math.PI * v);
+
+      // Vertikale Abdunklung für Tiefe.
+      const verticalShade =
+        1 - 0.07 * Math.pow(Math.abs(v - 0.5) * 2, 2);
+
+      const index = (y * workWidth + x) * 4;
+
+      pixels[index] = Math.round(
+        color[0] * softLight * verticalShade
+      );
+
+      pixels[index + 1] = Math.round(
+        color[1] * softLight * verticalShade
+      );
+
+      pixels[index + 2] = Math.round(
+        color[2] * softLight * verticalShade
+      );
+
+      pixels[index + 3] = 255;
+    }
+  }
+
+  offCtx.putImageData(imageData, 0, 0);
+
+  // Hochskalieren mit weicher Interpolation.
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(offscreen, 0, 0, width, height);
   ctx.restore();
 }
 
@@ -426,40 +630,27 @@ function drawEchoesCompass(ctx, cx, cy) {
 }
 
 /* =========================================
-   PANEL ZEICHNEN
+   THEMENBEREICHE ZEICHNEN
 ========================================= */
 
 function drawPanel(ctx, section, image, centerX, panelW, canvasH) {
   const x = centerX - panelW / 2;
 
   ctx.save();
+
   ctx.beginPath();
   ctx.rect(x, 0, panelW, canvasH);
   ctx.clip();
 
-  const background = ctx.createLinearGradient(
-    x, 0, x + panelW, canvasH
-  );
+  // WICHTIG:
+  // Hier wird KEIN eigener rechteckiger
+  // Hintergrund mehr gezeichnet.
+  // Der nahtlose Hintergrund liegt bereits
+  // unter sämtlichen fünf Bereichen.
 
-  background.addColorStop(0, "#18221b");
-  background.addColorStop(.5, "#202c23");
-  background.addColorStop(1, "#111813");
+  const contentW = panelW * 0.76;
 
-  ctx.fillStyle = background;
-  ctx.fillRect(x, 0, panelW, canvasH);
-
-  const glow = ctx.createRadialGradient(
-    centerX, canvasH * .45, 20,
-    centerX, canvasH * .45, panelW * .8
-  );
-
-  glow.addColorStop(0, "rgba(183,201,170,.12)");
-  glow.addColorStop(1, "rgba(8,13,9,0)");
-
-  ctx.fillStyle = glow;
-  ctx.fillRect(x, 0, panelW, canvasH);
-
-  const contentW = panelW * .76;
+  /* BUCHSTABE */
 
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -472,6 +663,8 @@ function drawPanel(ctx, section, image, centerX, panelW, canvasH) {
     canvasH * .115
   );
 
+  /* KATEGORIE */
+
   ctx.textBaseline = "alphabetic";
   ctx.fillStyle = "rgba(232,239,226,.65)";
   ctx.font = "500 21px 'DM Mono', monospace";
@@ -483,6 +676,8 @@ function drawPanel(ctx, section, image, centerX, panelW, canvasH) {
     contentW
   );
 
+  /* TITEL */
+
   ctx.fillStyle = "#f0f2eb";
   ctx.font = section.name === "MUSIC"
     ? "300 45px Manrope, Arial"
@@ -491,26 +686,47 @@ function drawPanel(ctx, section, image, centerX, panelW, canvasH) {
   const titleY = canvasH * .31;
 
   section.title.forEach((line, i) => {
-    ctx.fillText(line, centerX, titleY + i * 76, contentW);
+    ctx.fillText(
+      line,
+      centerX,
+      titleY + i * 76,
+      contentW
+    );
   });
 
-  const bodyStart = titleY + (section.title.length - 1) * 76 + 100;
+  /* TEXT */
+
+  const bodyStart =
+    titleY + (section.title.length - 1) * 76 + 100;
 
   ctx.fillStyle = "rgba(235,239,230,.86)";
   ctx.font = "300 22px Manrope, Arial";
 
   section.body.forEach((line, i) => {
-    ctx.fillText(line, centerX, bodyStart + i * 43, contentW);
+    ctx.fillText(
+      line,
+      centerX,
+      bodyStart + i * 43,
+      contentW
+    );
   });
 
+  /* ZUSATZINFORMATION */
+
   if (section.extra) {
-    const extraStart = bodyStart + section.body.length * 43 + 35;
+    const extraStart =
+      bodyStart + section.body.length * 43 + 35;
 
     ctx.fillStyle = "#c1d0b7";
     ctx.font = "500 18px 'DM Mono', monospace";
 
     section.extra.forEach((line, i) => {
-      ctx.fillText(line, centerX, extraStart + i * 39, contentW);
+      ctx.fillText(
+        line,
+        centerX,
+        extraStart + i * 39,
+        contentW
+      );
     });
   }
 
@@ -541,31 +757,57 @@ function drawPanel(ctx, section, image, centerX, panelW, canvasH) {
     homeVideoStarted &&
     homeVideo.readyState >= 2
   ) {
-    drawCoverCrop(ctx, homeVideo, imageX, imageY, imageW, imageH);
+    drawCoverCrop(
+      ctx, homeVideo,
+      imageX, imageY, imageW, imageH
+    );
   } else {
-    drawCoverCrop(ctx, image, imageX, imageY, imageW, imageH);
+    drawCoverCrop(
+      ctx, image,
+      imageX, imageY, imageW, imageH
+    );
 
     if (section.name === "HOME") {
-      drawPlayButton(ctx, centerX, imageY + imageH / 2, 48);
+      drawPlayButton(
+        ctx,
+        centerX,
+        imageY + imageH / 2,
+        48
+      );
     }
   }
 
   ctx.restore();
 
-  /* MUSIC UND CONTACT: ÖFFNEN */
+  /* MUSIC UND CONTACT */
 
-  if (section.name === "MUSIC" || section.name === "CONTACT") {
+  if (
+    section.name === "MUSIC" ||
+    section.name === "CONTACT"
+  ) {
     ctx.save();
+
     ctx.fillStyle = "#e2ebdc";
     ctx.font = "300 45px Manrope, Arial";
     ctx.textAlign = "center";
 
-    ctx.fillText("ÖFFNEN  ↗", centerX, imageY - 23);
+    ctx.fillText(
+      "ÖFFNEN  ↗",
+      centerX,
+      imageY - 23
+    );
+
     ctx.restore();
   }
 
+  /* ECHOES */
+
   if (section.name === "ECHOES") {
-    drawEchoesCompass(ctx, centerX, imageY + imageH / 2);
+    drawEchoesCompass(
+      ctx,
+      centerX,
+      imageY + imageH / 2
+    );
   }
 
   ctx.strokeStyle = "rgba(226,235,220,.48)";
@@ -574,11 +816,17 @@ function drawPanel(ctx, section, image, centerX, panelW, canvasH) {
 
   ctx.restore();
 
+  /* UNTERE LINIE */
+
   ctx.strokeStyle = "rgba(226,235,220,.35)";
+  ctx.lineWidth = 2;
+
   ctx.beginPath();
   ctx.moveTo(centerX - contentW / 2, canvasH * .88);
   ctx.lineTo(centerX + contentW / 2, canvasH * .88);
   ctx.stroke();
+
+  /* SEITENNUMMER */
 
   ctx.fillStyle = "rgba(232,239,226,.62)";
   ctx.font = "19px 'DM Mono', monospace";
@@ -594,7 +842,7 @@ function drawPanel(ctx, section, image, centerX, panelW, canvasH) {
 }
 
 /* =========================================
-   TEXTUR ERSTELLEN
+   KUGELTEXTUR ERSTELLEN
 ========================================= */
 
 async function createGlobeTexture() {
@@ -617,35 +865,50 @@ async function createGlobeTexture() {
   globeCanvas = canvas;
   globeContext = ctx;
 
-  ctx.fillStyle = "#172019";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Zuerst den durchgehenden Hintergrund.
+  drawSeamlessBackground(
+    ctx,
+    canvas.width,
+    canvas.height
+  );
 
+  // Danach sämtliche Inhalte darüberzeichnen.
   const panelW = canvas.width / sections.length;
 
   sections.forEach((section, index) => {
-    const center = canvas.width * (.25 + index / sections.length);
+    const center =
+      canvas.width * (.25 + index / sections.length);
+
     const x = center - panelW / 2;
 
-    drawPanel(ctx, section, images[index], center, panelW, canvas.height);
+    drawPanel(
+      ctx, section, images[index],
+      center, panelW, canvas.height
+    );
 
+    // Naht zwischen letztem und erstem Bereich.
     if (x < 0) {
       drawPanel(
         ctx, section, images[index],
-        center + canvas.width, panelW, canvas.height
+        center + canvas.width,
+        panelW, canvas.height
       );
     } else if (x + panelW > canvas.width) {
       drawPanel(
         ctx, section, images[index],
-        center - canvas.width, panelW, canvas.height
+        center - canvas.width,
+        panelW, canvas.height
       );
     }
   });
 
   const texture = new THREE.CanvasTexture(canvas);
-  globeTexture = texture;
 
+  globeTexture = texture;
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.anisotropy =
+    renderer.capabilities.getMaxAnisotropy();
   texture.needsUpdate = true;
 
   return texture;
@@ -653,13 +916,18 @@ async function createGlobeTexture() {
 
 createGlobeTexture()
   .then(texture => {
-    globeMaterial.map = texture;
-    globeMaterial.needsUpdate = true;
-    console.info("CAMOU: Alle fünf Bereiche geladen.");
+    globe.material.map = texture;
+    globe.material.needsUpdate = true;
+
+    console.info(
+      "CAMOU: Nahtlose Kugeltextur geladen."
+    );
   })
   .catch(error => {
-    console.error("CAMOU: Texturfehler", error);
-    sectionLabel.textContent = "BILDER NICHT GELADEN";
+    console.error(
+      "CAMOU: Textur konnte nicht geladen werden.",
+      error
+    );
   });
 
 /* =========================================
@@ -677,6 +945,7 @@ function updateHomeVideoFrame() {
   const w = globeCanvas.width;
   const h = globeCanvas.height;
   const pw = w / sections.length;
+
   const cx = w * .25;
   const iw = pw * .56;
   const ih = h * .19;
@@ -688,12 +957,21 @@ function updateHomeVideoFrame() {
   globeContext.rect(ix, iy, iw, ih);
   globeContext.clip();
 
-  drawCoverCrop(globeContext, homeVideo, ix, iy, iw, ih);
+  drawCoverCrop(
+    globeContext,
+    homeVideo,
+    ix, iy, iw, ih
+  );
 
   globeContext.restore();
 
   if (homeVideo.paused) {
-    drawPlayButton(globeContext, cx, iy + ih / 2, 48);
+    drawPlayButton(
+      globeContext,
+      cx,
+      iy + ih / 2,
+      48
+    );
   }
 
   globeTexture.needsUpdate = true;
@@ -704,21 +982,86 @@ function updateHomeVideoFrame() {
 ========================================= */
 
 function refreshEchoesTexture() {
-  if (!echoesImage || !globeContext || !globeTexture) return;
+  if (
+    !echoesImage ||
+    !globeContext ||
+    !globeTexture
+  ) return;
 
   const w = globeCanvas.width;
   const h = globeCanvas.height;
   const pw = w / sections.length;
-  const center = w * (.25 + 3 / sections.length);
 
-  drawPanel(globeContext, sections[3], echoesImage, center, pw, h);
+  const center =
+    w * (.25 + 3 / sections.length);
+
+  // Nur den Echoes-Bereich neu zeichnen.
+  // Der nahtlose Hintergrund muss dabei
+  // zunächst wiederhergestellt werden.
+  const x = center - pw / 2;
+
+  globeContext.save();
+  globeContext.beginPath();
+  globeContext.rect(x, 0, pw, h);
+  globeContext.clip();
+
+  // Hintergrund aus der gespeicherten
+  // Grundtextur wiederherstellen.
+  if (baseBackgroundCanvas) {
+    globeContext.drawImage(
+      baseBackgroundCanvas,
+      0, 0
+    );
+  }
+
+  globeContext.restore();
+
+  drawPanel(
+    globeContext,
+    sections[3],
+    echoesImage,
+    center,
+    pw,
+    h
+  );
 
   if (center + pw / 2 > w) {
-    drawPanel(globeContext, sections[3], echoesImage, center - w, pw, h);
+    drawPanel(
+      globeContext,
+      sections[3],
+      echoesImage,
+      center - w,
+      pw,
+      h
+    );
   }
 
   globeTexture.needsUpdate = true;
 }
+
+/* =========================================
+   HINTERGRUND ZWISCHENSPEICHERN
+========================================= */
+
+let baseBackgroundCanvas = null;
+
+// Hintergrund einmal separat erzeugen,
+// damit der Kompass keine Bildspuren hinterlässt.
+function prepareBackgroundCache() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 4096;
+  canvas.height = 2048;
+
+  drawSeamlessBackground(
+    canvas.getContext("2d"),
+    canvas.width,
+    canvas.height
+  );
+
+  baseBackgroundCanvas = canvas;
+}
+
+prepareBackgroundCache();
 
 /* =========================================
    NAVIGATION
@@ -727,7 +1070,10 @@ function refreshEchoesTexture() {
 function currentIndex() {
   const raw = Math.round(-rotationY / sectionStep);
 
-  return ((raw % sections.length) + sections.length) % sections.length;
+  return (
+    (raw % sections.length + sections.length)
+    % sections.length
+  );
 }
 
 function updateIndicator() {
@@ -738,16 +1084,22 @@ function updateIndicator() {
     `${String(index + 1).padStart(2, "0")} / 05`;
 
   navButtons.forEach((button, i) => {
-    button.classList.toggle("active", i === index);
+    button.classList.toggle(
+      "active",
+      i === index
+    );
   });
 }
 
 function goToSection(index) {
-  const i = ((index % sections.length) + sections.length) % sections.length;
+  const i =
+    ((index % sections.length) + sections.length)
+    % sections.length;
 
   rotationX = 0;
   velocityX = 0;
   velocityY = 0;
+
   isDragging = false;
   pointers.clear();
   pointerStart = null;
@@ -757,8 +1109,13 @@ function goToSection(index) {
   let destination = -i * sectionStep;
   const full = Math.PI * 2;
 
-  while (destination - rotationY > Math.PI) destination -= full;
-  while (destination - rotationY < -Math.PI) destination += full;
+  while (destination - rotationY > Math.PI) {
+    destination -= full;
+  }
+
+  while (destination - rotationY < -Math.PI) {
+    destination += full;
+  }
 
   targetRotationY = destination;
   menuAnimating = true;
@@ -770,22 +1127,31 @@ navButtons.forEach(button => {
   });
 });
 
-document.getElementById("logo").addEventListener("click", event => {
-  event.preventDefault();
-  goToSection(0);
-});
+document.getElementById("logo")
+  .addEventListener("click", event => {
+    event.preventDefault();
+    goToSection(0);
+  });
 
 /* =========================================
    SPOTIFY MODAL
 ========================================= */
 
-const spotifyModal = document.getElementById("spotify-modal");
-const spotifyPlayer = document.getElementById("spotify-modal-player");
-const spotifyClose = document.getElementById("spotify-modal-close");
+const spotifyModal =
+  document.getElementById("spotify-modal");
+
+const spotifyPlayer =
+  document.getElementById("spotify-modal-player");
+
+const spotifyClose =
+  document.getElementById("spotify-modal-close");
 
 let spotifyOpen = false;
 
-if (spotifyModal && spotifyModal.parentElement !== document.body) {
+if (
+  spotifyModal &&
+  spotifyModal.parentElement !== document.body
+) {
   document.body.appendChild(spotifyModal);
 }
 
@@ -793,6 +1159,7 @@ function openSpotifyModal() {
   if (!spotifyModal || spotifyOpen) return;
 
   spotifyOpen = true;
+
   velocityX = 0;
   velocityY = 0;
   isDragging = false;
@@ -801,9 +1168,12 @@ function openSpotifyModal() {
   spotifyModal.hidden = false;
   spotifyModal.style.display = "flex";
 
-  document.body.classList.add("spotify-dialog-open");
+  document.body.classList.add(
+    "spotify-dialog-open"
+  );
 
-  spotifyPlayer.src = spotifyPlayer.dataset.src ||
+  spotifyPlayer.src =
+    spotifyPlayer.dataset.src ||
     "https://open.spotify.com/embed/artist/7pajHvUWNCnOPhDPyH4M6x?theme=0";
 
   spotifyClose?.focus({ preventScroll: true });
@@ -816,7 +1186,10 @@ function closeSpotifyModal() {
   spotifyModal.hidden = true;
   spotifyModal.style.display = "none";
 
-  document.body.classList.remove("spotify-dialog-open");
+  document.body.classList.remove(
+    "spotify-dialog-open"
+  );
+
   spotifyPlayer?.removeAttribute("src");
 }
 
@@ -826,14 +1199,17 @@ spotifyClose?.addEventListener("click", event => {
   closeSpotifyModal();
 });
 
-spotifyModal?.addEventListener("pointerdown", event => {
-  if (
-    event.target === spotifyModal ||
-    event.target.closest?.("[data-close-spotify]")
-  ) {
-    closeSpotifyModal();
+spotifyModal?.addEventListener(
+  "pointerdown",
+  event => {
+    if (
+      event.target === spotifyModal ||
+      event.target.closest?.("[data-close-spotify]")
+    ) {
+      closeSpotifyModal();
+    }
   }
-});
+);
 
 /* =========================================
    CONTACT MODAL
@@ -842,16 +1218,28 @@ spotifyModal?.addEventListener("pointerdown", event => {
 const CONTACT_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycby3SfFxFDJQZNL0PxI75Z0O_HyDZl_MoC2b8jcW5PLy0kwPAuiOnK9macrxFTaUboXftg/exec";
 
-const contactModal = document.getElementById("contact-modal");
-const contactForm = document.getElementById("contact-form");
-const contactClose = document.getElementById("contact-modal-close");
-const contactStatusEl = document.getElementById("contact-status");
-const contactSubmit = document.getElementById("contact-submit");
+const contactModal =
+  document.getElementById("contact-modal");
+
+const contactForm =
+  document.getElementById("contact-form");
+
+const contactClose =
+  document.getElementById("contact-modal-close");
+
+const contactStatusEl =
+  document.getElementById("contact-status");
+
+const contactSubmit =
+  document.getElementById("contact-submit");
 
 let contactOpen = false;
 let contactSending = false;
 
-if (contactModal && contactModal.parentElement !== document.body) {
+if (
+  contactModal &&
+  contactModal.parentElement !== document.body
+) {
   document.body.appendChild(contactModal);
 }
 
@@ -868,7 +1256,9 @@ function openContactModal() {
   contactModal.hidden = false;
   contactModal.style.display = "flex";
 
-  document.body.classList.add("contact-dialog-open");
+  document.body.classList.add(
+    "contact-dialog-open"
+  );
 
   contactModal.querySelector('input[name="name"]')
     ?.focus({ preventScroll: true });
@@ -881,7 +1271,9 @@ function closeContactModal() {
   contactModal.hidden = true;
   contactModal.style.display = "none";
 
-  document.body.classList.remove("contact-dialog-open");
+  document.body.classList.remove(
+    "contact-dialog-open"
+  );
 }
 
 contactClose?.addEventListener("click", event => {
@@ -902,64 +1294,93 @@ contactModal?.addEventListener("click", event => {
    KONTAKTFORMULAR SENDEN
 ========================================= */
 
-contactForm?.addEventListener("submit", async event => {
-  event.preventDefault();
+contactForm?.addEventListener(
+  "submit",
+  async event => {
+    event.preventDefault();
 
-  if (contactSending || !contactForm.reportValidity()) return;
+    if (
+      contactSending ||
+      !contactForm.reportValidity()
+    ) return;
 
-  contactSending = true;
-  contactSubmit.disabled = true;
+    contactSending = true;
 
-  contactStatusEl.textContent = "Nachricht wird übertragen …";
+    if (contactSubmit) {
+      contactSubmit.disabled = true;
+    }
 
-  const formData = new FormData(contactForm);
-  formData.set("privacy", "zugestimmt");
-  formData.set("website", "");
+    if (contactStatusEl) {
+      contactStatusEl.textContent =
+        "Nachricht wird übertragen …";
+    }
 
-  try {
-    await fetch(CONTACT_SCRIPT_URL, {
-      method: "POST",
-      body: formData,
-      mode: "no-cors"
-    });
+    const formData = new FormData(contactForm);
 
-    contactStatusEl.textContent =
-      "Übertragung abgeschlossen. Empfang konnte nicht bestätigt werden.";
+    formData.set("privacy", "zugestimmt");
+    formData.set("website", "");
 
-  } catch (error) {
-    console.error("Kontaktformular:", error);
+    try {
+      await fetch(CONTACT_SCRIPT_URL, {
+        method: "POST",
+        body: formData,
+        mode: "no-cors"
+      });
 
-    contactStatusEl.textContent =
-      "Übertragung fehlgeschlagen. Bitte erneut versuchen.";
+      if (contactStatusEl) {
+        contactStatusEl.textContent =
+          "Übertragung abgeschlossen. Empfang konnte nicht bestätigt werden.";
+      }
 
-  } finally {
-    contactSending = false;
-    contactSubmit.disabled = false;
+    } catch (error) {
+      console.error(
+        "Kontaktformular:",
+        error
+      );
+
+      if (contactStatusEl) {
+        contactStatusEl.textContent =
+          "Übertragung fehlgeschlagen. Bitte erneut versuchen.";
+      }
+
+    } finally {
+      contactSending = false;
+
+      if (contactSubmit) {
+        contactSubmit.disabled = false;
+      }
+    }
   }
-});
+);
 
 /* =========================================
    ESCAPE
 ========================================= */
 
-window.addEventListener("keydown", event => {
-  if (event.key !== "Escape") return;
+window.addEventListener(
+  "keydown",
+  event => {
+    if (event.key !== "Escape") return;
 
-  if (contactOpen) {
-    event.preventDefault();
-    closeContactModal();
-  } else if (spotifyOpen) {
-    event.preventDefault();
-    closeSpotifyModal();
-  }
-}, true);
+    if (contactOpen) {
+      event.preventDefault();
+      closeContactModal();
+
+    } else if (spotifyOpen) {
+      event.preventDefault();
+      closeSpotifyModal();
+    }
+  },
+  true
+);
 
 /* =========================================
-   KLICK AUF KUGEL ERKENNEN
+   KLICK AUF KUGEL
 ========================================= */
 
 function getTexturePoint(event) {
-  const rect = renderer.domElement.getBoundingClientRect();
+  const rect =
+    renderer.domElement.getBoundingClientRect();
 
   pointer.set(
     ((event.clientX - rect.left) / rect.width) * 2 - 1,
@@ -971,7 +1392,8 @@ function getTexturePoint(event) {
 
   raycaster.setFromCamera(pointer, camera);
 
-  const hit = raycaster.intersectObject(globe)[0];
+  const hit =
+    raycaster.intersectObject(globe)[0];
 
   if (!hit?.uv) return null;
 
@@ -992,7 +1414,8 @@ function isInsideSectionImage(point, index) {
   const iw = pw * .56;
   const ih = h * .19;
 
-  const dx = ((point.x - cx + w / 2 + w) % w) - w / 2;
+  const dx =
+    ((point.x - cx + w / 2 + w) % w) - w / 2;
 
   return (
     Math.abs(dx) <= iw / 2 &&
@@ -1006,7 +1429,9 @@ function handleMusicImageClick(event) {
 
   const point = getTexturePoint(event);
 
-  if (!isInsideSectionImage(point, 1)) return false;
+  if (!isInsideSectionImage(point, 1)) {
+    return false;
+  }
 
   openSpotifyModal();
   return true;
@@ -1017,7 +1442,9 @@ function handleContactImageClick(event) {
 
   const point = getTexturePoint(event);
 
-  if (!isInsideSectionImage(point, 4)) return false;
+  if (!isInsideSectionImage(point, 4)) {
+    return false;
+  }
 
   openContactModal();
   return true;
@@ -1031,21 +1458,36 @@ function handleEchoesClick(event) {
 
   const w = 4096;
   const h = 2048;
-  const center = w * (.25 + 3 / sections.length);
 
-  const dx = ((point.x - center + w / 2 + w) % w) - w / 2;
+  const center =
+    w * (.25 + 3 / sections.length);
+
+  const dx =
+    ((point.x - center + w / 2 + w) % w) - w / 2;
+
   const cy = h * (.475 + .19 / 2);
 
   const chosen = ECHOES_LINKS.find(item => {
-    const x = Math.cos(item.angle) * echoesCompassRadius;
-    const y = cy + Math.sin(item.angle) * echoesCompassRadius;
+    const x =
+      Math.cos(item.angle) * echoesCompassRadius;
 
-    return Math.hypot(dx - x, point.y - y) < 31;
+    const y =
+      cy + Math.sin(item.angle) * echoesCompassRadius;
+
+    return Math.hypot(
+      dx - x,
+      point.y - y
+    ) < 31;
   });
 
   if (!chosen) return false;
 
-  window.open(chosen.url, "_blank", "noopener,noreferrer");
+  window.open(
+    chosen.url,
+    "_blank",
+    "noopener,noreferrer"
+  );
+
   return true;
 }
 
@@ -1054,10 +1496,16 @@ function handleHomeVideoClick(event) {
 
   const point = getTexturePoint(event);
 
-  if (!isInsideSectionImage(point, 0)) return false;
+  if (!isInsideSectionImage(point, 0)) {
+    return false;
+  }
+
   if (homeVideoStarting) return true;
 
-  if (homeVideoStarted && !homeVideo.paused) {
+  if (
+    homeVideoStarted &&
+    !homeVideo.paused
+  ) {
     homeVideo.pause();
     homeVideoPlaying = false;
     updateHomeVideoFrame();
@@ -1071,12 +1519,20 @@ function handleHomeVideoClick(event) {
       homeVideoStarted = true;
       homeVideoPlaying = true;
       homeVideoStarting = false;
+
       updateHomeVideoFrame();
     })
     .catch(error => {
       homeVideoStarting = false;
-      console.error("Video:", error);
-      alert("Das HOME-Video konnte nicht gestartet werden.");
+
+      console.error(
+        "HOME-Video:",
+        error
+      );
+
+      alert(
+        "Das HOME-Video konnte nicht gestartet werden."
+      );
     });
 
   return true;
@@ -1096,121 +1552,154 @@ function setZoom(value) {
 }
 
 document.getElementById("zoom-in")
-  .addEventListener("click", () => setZoom(currentZoom - .7));
+  .addEventListener("click", () => {
+    setZoom(currentZoom - .7);
+  });
 
 document.getElementById("zoom-out")
-  .addEventListener("click", () => setZoom(currentZoom + .7));
+  .addEventListener("click", () => {
+    setZoom(currentZoom + .7);
+  });
 
 document.getElementById("zoom-reset")
-  .addEventListener("click", () => setZoom(defaultZoom));
+  .addEventListener("click", () => {
+    setZoom(defaultZoom);
+  });
 
-stage.addEventListener("wheel", event => {
-  event.preventDefault();
-  setZoom(currentZoom + event.deltaY * .008);
-}, { passive: false });
+stage.addEventListener(
+  "wheel",
+  event => {
+    event.preventDefault();
+    setZoom(currentZoom + event.deltaY * .008);
+  },
+  { passive: false }
+);
 
 /* =========================================
    DRAG UND TOUCH
 ========================================= */
 
 function distance(a, b) {
-  return Math.hypot(a.x - b.x, a.y - b.y);
+  return Math.hypot(
+    a.x - b.x,
+    a.y - b.y
+  );
 }
 
-stage.addEventListener("pointerdown", event => {
-  if (spotifyOpen || contactOpen) return;
+stage.addEventListener(
+  "pointerdown",
+  event => {
+    if (spotifyOpen || contactOpen) return;
 
-  pointers.set(event.pointerId, {
-    x: event.clientX,
-    y: event.clientY
-  });
+    pointers.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY
+    });
 
-  pointerStart = {
-    x: event.clientX,
-    y: event.clientY
-  };
+    pointerStart = {
+      x: event.clientX,
+      y: event.clientY
+    };
 
-  stage.setPointerCapture(event.pointerId);
+    stage.setPointerCapture(event.pointerId);
 
-  if (pointers.size === 1) {
-    isDragging = true;
+    if (pointers.size === 1) {
+      isDragging = true;
+
+      previousX = event.clientX;
+      previousY = event.clientY;
+      lastTime = performance.now();
+
+      velocityX = 0;
+      velocityY = 0;
+      menuAnimating = false;
+
+      stage.classList.add("dragging");
+      hint.classList.add("hidden");
+
+    } else if (pointers.size === 2) {
+      isDragging = false;
+      pointerStart = null;
+
+      stage.classList.remove("dragging");
+
+      const pts = [...pointers.values()];
+
+      pinchDistance = distance(
+        pts[0],
+        pts[1]
+      );
+
+      pinchZoom = currentZoom;
+    }
+  }
+);
+
+stage.addEventListener(
+  "pointermove",
+  event => {
+    if (!pointers.has(event.pointerId)) return;
+
+    pointers.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY
+    });
+
+    if (pointers.size >= 2) {
+      const pts = [...pointers.values()];
+      const d = distance(pts[0], pts[1]);
+
+      if (pinchDistance > 0) {
+        setZoom(
+          pinchZoom / (d / pinchDistance)
+        );
+      }
+
+      return;
+    }
+
+    if (!isDragging) return;
+
+    const now = performance.now();
+    const dt = Math.max(1, now - lastTime);
+
+    const dx = event.clientX - previousX;
+    const dy = event.clientY - previousY;
+
+    const factor = Math.min(dt / 16, 2);
+
+    const mx = dx * CONFIG.dragSpeed;
+    const my = dy * CONFIG.dragSpeed;
+
+    rotationY += mx;
+    rotationX += my;
+
+    velocityY = mx / factor;
+    velocityX = my / factor;
 
     previousX = event.clientX;
     previousY = event.clientY;
-    lastTime = performance.now();
+    lastTime = now;
 
-    velocityX = 0;
-    velocityY = 0;
-    menuAnimating = false;
-
-    stage.classList.add("dragging");
-    hint.classList.add("hidden");
-
-  } else if (pointers.size === 2) {
-    isDragging = false;
-    pointerStart = null;
-
-    stage.classList.remove("dragging");
-
-    const pts = [...pointers.values()];
-    pinchDistance = distance(pts[0], pts[1]);
-    pinchZoom = currentZoom;
+    updateIndicator();
   }
-});
-
-stage.addEventListener("pointermove", event => {
-  if (!pointers.has(event.pointerId)) return;
-
-  pointers.set(event.pointerId, {
-    x: event.clientX,
-    y: event.clientY
-  });
-
-  if (pointers.size >= 2) {
-    const pts = [...pointers.values()];
-    const d = distance(pts[0], pts[1]);
-
-    if (pinchDistance > 0) {
-      setZoom(pinchZoom / (d / pinchDistance));
-    }
-
-    return;
-  }
-
-  if (!isDragging) return;
-
-  const now = performance.now();
-  const dt = Math.max(1, now - lastTime);
-
-  const dx = event.clientX - previousX;
-  const dy = event.clientY - previousY;
-
-  const factor = Math.min(dt / 16, 2);
-
-  const mx = dx * CONFIG.dragSpeed;
-  const my = dy * CONFIG.dragSpeed;
-
-  rotationY += mx;
-  rotationX += my;
-
-  velocityY = mx / factor;
-  velocityX = my / factor;
-
-  previousX = event.clientX;
-  previousY = event.clientY;
-  lastTime = now;
-
-  updateIndicator();
-});
+);
 
 function releasePointer(event) {
-  if (event.type === "pointerup" && pointerStart) {
+  if (
+    event.type === "pointerup" &&
+    pointerStart
+  ) {
     const movement = Math.hypot(
       event.clientX - pointerStart.x,
       event.clientY - pointerStart.y
     );
 
-    if (movement <= 7 && !spotifyOpen && !contactOpen) {
+    if (
+      movement <= 7 &&
+      !spotifyOpen &&
+      !contactOpen
+    ) {
       if (!handleMusicImageClick(event)) {
         if (!handleContactImageClick(event)) {
           if (!handleEchoesClick(event)) {
@@ -1256,7 +1745,10 @@ window.addEventListener("keydown", event => {
 
   const tag = document.activeElement?.tagName;
 
-  if (tag === "INPUT" || tag === "TEXTAREA") return;
+  if (
+    tag === "INPUT" ||
+    tag === "TEXTAREA"
+  ) return;
 
   if (event.key === "ArrowRight") {
     goToSection(currentIndex() + 1);
@@ -1266,10 +1758,18 @@ window.addEventListener("keydown", event => {
     goToSection(currentIndex() - 1);
   }
 
-  if (event.key === "ArrowUp") rotationX -= .25;
-  if (event.key === "ArrowDown") rotationX += .25;
+  if (event.key === "ArrowUp") {
+    rotationX -= .25;
+  }
 
-  if (event.key === "+" || event.key === "=") {
+  if (event.key === "ArrowDown") {
+    rotationX += .25;
+  }
+
+  if (
+    event.key === "+" ||
+    event.key === "="
+  ) {
     setZoom(currentZoom - .7);
   }
 
@@ -1290,7 +1790,8 @@ function animate() {
   requestAnimationFrame(animate);
 
   if (!isDragging && menuAnimating) {
-    const delta = targetRotationY - rotationY;
+    const delta =
+      targetRotationY - rotationY;
 
     rotationY += delta * .055;
 
@@ -1306,18 +1807,30 @@ function animate() {
     velocityY *= CONFIG.friction;
     velocityX *= CONFIG.friction;
 
-    if (Math.abs(velocityY) < .00004) velocityY = 0;
-    if (Math.abs(velocityX) < .00004) velocityX = 0;
+    if (Math.abs(velocityY) < .00004) {
+      velocityY = 0;
+    }
+
+    if (Math.abs(velocityX) < .00004) {
+      velocityX = 0;
+    }
   }
 
-  globeGroup.rotation.set(rotationX, rotationY, 0);
+  globeGroup.rotation.set(
+    rotationX,
+    rotationY,
+    0
+  );
 
   if (homeVideoPlaying) {
     updateHomeVideoFrame();
   }
 
-  const deltaX = rotationX - echoesLastRotationX;
-  const deltaY = rotationY - echoesLastRotationY;
+  const deltaX =
+    rotationX - echoesLastRotationX;
+
+  const deltaY =
+    rotationY - echoesLastRotationY;
 
   echoesLastRotationX = rotationX;
   echoesLastRotationY = rotationY;
@@ -1325,9 +1838,14 @@ function animate() {
   if (
     currentIndex() === 3 &&
     globeTexture &&
-    (Math.abs(deltaX) > .000001 || Math.abs(deltaY) > .000001)
+    (
+      Math.abs(deltaX) > .000001 ||
+      Math.abs(deltaY) > .000001
+    )
   ) {
-    echoesAngle += deltaY * .85 + deltaX * .35;
+    echoesAngle +=
+      deltaY * .85 + deltaX * .35;
+
     refreshEchoesTexture();
   }
 
@@ -1349,7 +1867,10 @@ function resize() {
   camera.updateProjectionMatrix();
 
   renderer.setSize(w, h);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  renderer.setPixelRatio(
+    Math.min(window.devicePixelRatio, 2)
+  );
 }
 
 window.addEventListener("resize", resize);
