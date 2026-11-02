@@ -675,12 +675,12 @@ function drawPanel(ctx, section, image, centerX, panelW, canvasH) {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = "rgba(235,242,229,.82)";
-  ctx.font = "300 75px Manrope, Arial";
+  ctx.font = "300 30px Manrope, Arial";
 
   ctx.fillText(
     section.poleLetter,
     centerX,
-    canvasH * .081
+    canvasH * .020
   );
 
   /* KATEGORIE */
