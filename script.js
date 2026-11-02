@@ -689,12 +689,11 @@ function drawPanel(ctx, section, image, centerX, panelW, canvasH) {
   ctx.fillStyle = "rgba(232,239,226,.65)";
   ctx.font = "500 21px 'DM Mono', monospace";
 
-  ctx.fillText(
-    section.eyebrow,
-    centerX,
-    canvasH * .24,
-    contentW
-  );
+ctx.fillText(
+  section.poleLetter,
+  centerX,
+  canvasH * .075
+);
 
   /* TITEL */
 
