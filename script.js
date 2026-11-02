@@ -729,7 +729,7 @@ function drawPanel(
     ctx.save();
 
     ctx.fillStyle = "#e2ebdc";
-    ctx.font = "500 23px 'DM Mono', monospace";
+    ctx.font = "300 45px Manrope, Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "alphabetic";
 
