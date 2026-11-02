@@ -416,3 +416,100 @@ a {
 #spotify-modal-close:hover { background:rgba(255,255,255,.2); }
 #spotify-modal-player { display:block; width:100%; height:min(690px,calc(100dvh - 112px)); min-height: min(380px,calc(100dvh - 112px)); border:0; background:#171717; }
 @media(max-height:500px) { #spotify-modal-player {height:calc(100dvh - 94px);min-height:0;} }
+
+
+/* =========================================
+   SPOTIFY POPUP – TRANSPARENTER HINTERGRUND
+========================================= */
+
+.spotify-modal[hidden] {
+  display: none !important;
+}
+
+.spotify-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+}
+
+.spotify-modal-backdrop {
+  position: absolute;
+  inset: 0;
+
+  background: rgba(35, 45, 38, 0.24);
+
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.spotify-modal-panel {
+  position: relative;
+  z-index: 1;
+
+  width: min(520px, 94vw);
+  max-height: 92dvh;
+
+  display: flex;
+  flex-direction: column;
+
+  background: rgba(35, 42, 37, 0.58);
+
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 14px;
+
+  overflow: hidden;
+
+  box-shadow: 0 16px 55px rgba(0, 0, 0, 0.25);
+}
+
+.spotify-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 10px 14px;
+
+  background: rgba(35, 42, 37, 0.35);
+
+  color: #e4ebdf;
+}
+
+#spotify-modal-close {
+  position: relative;
+  z-index: 10;
+
+  width: 40px;
+  height: 40px;
+
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.4);
+
+  background: rgba(255,255,255,0.12);
+  color: white;
+
+  font-size: 28px;
+  line-height: 1;
+
+  cursor: pointer;
+}
+
+#spotify-modal-close:hover {
+  background: rgba(255,255,255,0.28);
+}
+
+#spotify-modal-player {
+  display: block;
+
+  width: 100%;
+  height: min(690px, calc(92dvh - 65px));
+
+  border: none;
+  background: transparent;
+}
+
