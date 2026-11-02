@@ -513,3 +513,6 @@ a {
   background: transparent;
 }
 
+
+/* Music: Kugel und Seitenhintergrund bleiben beim Spotify-Dialog klar sichtbar. */
+.spotify-modal-backdrop { background: transparent !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
