@@ -1,4 +1,3 @@
-
 import * as THREE from "three";
 
 /* CAMOU — GLOBE & MOTION COMPASS */
@@ -20,6 +19,15 @@ const ASSETS = {
   homeVideo: new URL("./assets/test.webm", import.meta.url).href,
   music: new URL("./assets/release.jpg", import.meta.url).href,
   visuals: new URL("./assets/visuals.jpg", import.meta.url).href,
+
+  // Bilder für den analogen Dia-Betrachter
+  visualSlides: [
+    new URL("./assets/visuals.jpg", import.meta.url).href,
+    new URL("./assets/visuals-01.jpg", import.meta.url).href,
+    new URL("./assets/visuals-02.jpg", import.meta.url).href,
+    new URL("./assets/visuals-03.jpg", import.meta.url).href
+  ],
+
   archive: new URL("./assets/archive.jpg", import.meta.url).href,
   contact: new URL("./assets/contact.jpg", import.meta.url).href
 };
@@ -159,6 +167,13 @@ let globeCanvas, globeContext, globeTexture;
 let baseTextureCanvas;
 let echoesImage;
 
+// Dia-Betrachter
+let visualImages = [];
+let visualIndex = 0;
+let visualLeverPointer = null;
+let visualLeverMoved = false;
+let visualLeverStartY = 0;
+
 const homeVideo = document.createElement("video");
 homeVideo.src = ASSETS.homeVideo;
 homeVideo.loop = true;
@@ -175,18 +190,25 @@ let homeVideoStarting = false;
 function loadImage(src) {
   return new Promise(resolve => {
     const img = new Image();
+
     img.onload = () => resolve(img);
+
     img.onerror = () => {
       const c = document.createElement("canvas");
       c.width = c.height = 1024;
+
       const g = c.getContext("2d");
       const grad = g.createLinearGradient(0, 0, 1024, 1024);
+
       grad.addColorStop(0, "#354a39");
       grad.addColorStop(1, "#0a1510");
+
       g.fillStyle = grad;
       g.fillRect(0, 0, 1024, 1024);
+
       resolve(c);
     };
+
     img.src = src;
   });
 }
@@ -194,31 +216,43 @@ function loadImage(src) {
 function cover(ctx, image, x, y, w, h) {
   const iw = image.videoWidth || image.naturalWidth || image.width;
   const ih = image.videoHeight || image.naturalHeight || image.height;
+
   if (!iw || !ih) return;
+
   const s = Math.max(w / iw, h / ih);
   const sw = w / s, sh = h / s;
+
   ctx.drawImage(
-    image, (iw - sw) / 2, (ih - sh) / 2,
-    sw, sh, x, y, w, h
+    image,
+    (iw - sw) / 2,
+    (ih - sh) / 2,
+    sw,
+    sh,
+    x, y, w, h
   );
 }
 
 function playButton(ctx, x, y) {
   ctx.save();
+
   ctx.beginPath();
   ctx.arc(x, y, 24, 0, Math.PI * 2);
   ctx.fillStyle = "rgba(8,13,10,.72)";
   ctx.fill();
+
   ctx.strokeStyle = "#f0f2eb";
   ctx.lineWidth = 2;
   ctx.stroke();
+
   ctx.beginPath();
   ctx.moveTo(x - 6, y - 10);
   ctx.lineTo(x + 11, y);
   ctx.lineTo(x - 6, y + 10);
   ctx.closePath();
+
   ctx.fillStyle = "#f0f2eb";
   ctx.fill();
+
   ctx.restore();
 }
 
@@ -233,21 +267,29 @@ const COLORS = [
 ];
 
 const lerp = (a,b,t) => a+(b-a)*t;
+
 const smooth = t => {
   t = Math.max(0, Math.min(1,t));
   return t*t*(3-2*t);
 };
+
 const mix = (a,b,t) => a.map((v,i)=>lerp(v,b[i],t));
 
 function sectionColor(p,v) {
   p = ((p%5)+5)%5;
+
   const i = Math.floor(p), f = p-i;
+
   const blend = lerp(
-    f,(1-Math.cos(f*Math.PI))/2,CONFIG.gradientSoftness
+    f,
+    (1-Math.cos(f*Math.PI))/2,
+    CONFIG.gradientSoftness
   );
+
   const vertical = c => v < .5
     ? mix(c[0],c[1],smooth(v*2))
     : mix(c[1],c[2],smooth((v-.5)*2));
+
   return mix(
     [26,39,30],
     mix(vertical(COLORS[i]),vertical(COLORS[(i+1)%5]),blend),
@@ -257,29 +299,39 @@ function sectionColor(p,v) {
 
 function drawBackground(ctx,w,h) {
   const small = document.createElement("canvas");
-  small.width=1024; small.height=512;
+  small.width=1024;
+  small.height=512;
+
   const g=small.getContext("2d");
   const image=g.createImageData(1024,512);
 
   for(let y=0;y<512;y++) {
     const v=y/511;
+
     for(let x=0;x<1024;x++) {
       const u=x/1024;
       const pole=smooth(Math.min(1,Math.min(v,1-v)/.24));
+
       const c=mix(
         [22,34,26],
         sectionColor((u-.25)*5,v),
         pole
       );
+
       const light=(
         1+.035*Math.cos(2*Math.PI*(u-.25))*Math.sin(Math.PI*v)
       )*(1-.07*Math.pow(Math.abs(v-.5)*2,2));
+
       const j=(y*1024+x)*4;
+
       for(let k=0;k<3;k++) image.data[j+k]=c[k]*light;
+
       image.data[j+3]=255;
     }
   }
+
   g.putImageData(image,0,0);
+
   ctx.imageSmoothingEnabled=true;
   ctx.imageSmoothingQuality="high";
   ctx.drawImage(small,0,0,w,h);
@@ -315,14 +367,7 @@ let fallbackAngle=0;
 let lastGlobeX=0, lastGlobeY=0;
 let lastCompassDraw=0;
 
-/* BEWEGUNGSSENSOREN
-
-   Alle verfügbaren Standard-Ereignisse werden
-   ohne automatische Berechtigungsabfrage abonniert.
-
-   Es werden relative Bewegungen verwendet,
-   keine geografischen Kompassrichtungen.
-*/
+/* BEWEGUNGSSENSOREN */
 
 let motionAngle=0;
 let motionLastAt=0;
@@ -336,6 +381,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
 function registerMotion(delta) {
   if(!motionEnabled || !Number.isFinite(delta)) return;
+
   motionAngle=wrapAngle(motionAngle+clamp(delta,-.18,.18));
   motionLastAt=performance.now();
   motionStatus="Bewegungssensor aktiv";
@@ -343,7 +389,9 @@ function registerMotion(delta) {
 
 function onOrientation(event) {
   if(!motionEnabled) return;
+
   const alpha=event.alpha, beta=event.beta, gamma=event.gamma;
+
   if(![alpha,beta,gamma].some(Number.isFinite)) return;
 
   const current={alpha,beta,gamma};
@@ -370,26 +418,25 @@ function onOrientation(event) {
 window.addEventListener(
   "deviceorientation",onOrientation,{passive:true}
 );
+
 window.addEventListener(
   "deviceorientationabsolute",onOrientation,{passive:true}
 );
 
-// Zusätzliche Bewegungsimpulse bei Geräten,
-// die keine brauchbaren Orientierungsdaten liefern.
-
 window.addEventListener("devicemotion",event=>{
   if(!motionEnabled) return;
 
-  // Orientierung hat Vorrang, wenn sie bereits läuft.
   if(performance.now()-motionLastAt<450) return;
 
   const r=event.rotationRate;
   const a=event.accelerationIncludingGravity;
 
   const now=performance.now();
+
   const dt=motionPreviousTime
     ? Math.min(.1,(now-motionPreviousTime)/1000)
     : .016;
+
   motionPreviousTime=now;
 
   if(r && [r.alpha,r.beta,r.gamma].some(Number.isFinite)) {
@@ -398,9 +445,10 @@ window.addEventListener("devicemotion",event=>{
       (Number(r.beta)||0)*.35+
       (Number(r.gamma)||0)*.55
     )*Math.PI/180*dt;
+
     registerMotion(impulse);
+
   } else if(a && Number.isFinite(a.x) && Number.isFinite(a.y)) {
-    // Kleine Reaktion auf Neigungs-/Beschleunigungsänderung.
     registerMotion(clamp((a.x-a.y)*.0005,-.012,.012));
   }
 },{passive:true});
@@ -410,6 +458,7 @@ window.addEventListener("devicemotion",event=>{
 const sensorBox=document.createElement("div");
 sensorBox.id="camou-motion-control";
 sensorBox.hidden=true;
+
 sensorBox.innerHTML=`
   <label style="display:flex;align-items:center;gap:9px;
                 justify-content:center;cursor:pointer">
@@ -468,8 +517,6 @@ sensorCheck.addEventListener("change",async()=>{
     return;
   }
 
-  // Die Freigabe wird NUR durch das Häkchen
-  // ausgelöst, niemals automatisch.
   try {
     const requests=[];
 
@@ -485,6 +532,7 @@ sensorCheck.addEventListener("change",async()=>{
 
     if(requests.length) {
       const results=await Promise.all(requests);
+
       if(results.every(r=>r!=="granted")) {
         sensorCheck.checked=false;
         motionEnabled=false;
@@ -495,6 +543,7 @@ sensorCheck.addEventListener("change",async()=>{
 
     orientationPrevious=null;
     sensorStatus.textContent="Warte auf Bewegungsdaten …";
+
   } catch(error) {
     console.warn("CAMOU Sensorfreigabe:",error);
     sensorCheck.checked=false;
@@ -508,6 +557,7 @@ sensorCheck.addEventListener("change",async()=>{
 function socialIcon(ctx,name,x,y) {
   ctx.save();
   ctx.translate(x,y);
+
   ctx.strokeStyle="#eef5eb";
   ctx.fillStyle="#eef5eb";
   ctx.lineWidth=2.7;
@@ -520,32 +570,39 @@ function socialIcon(ctx,name,x,y) {
       ctx.arc(0,8+i*3,17-i*4,Math.PI*1.18,Math.PI*1.83);
       ctx.stroke();
     }
+
   } else if(name==="APPLE") {
     ctx.font="bold 28px Arial";
     ctx.textAlign="center";
     ctx.textBaseline="middle";
     ctx.fillText("♫",0,1);
+
   } else if(name==="YOUTUBE") {
     ctx.beginPath();
     ctx.roundRect(-17,-12,34,24,7);
     ctx.stroke();
+
     ctx.beginPath();
     ctx.moveTo(-4,-7);
     ctx.lineTo(8,0);
     ctx.lineTo(-4,7);
     ctx.closePath();
     ctx.fill();
+
   } else if(name==="INSTAGRAM") {
     ctx.beginPath();
     ctx.roundRect(-15,-15,30,30,8);
     ctx.stroke();
+
     ctx.beginPath();
     ctx.arc(0,0,7,0,Math.PI*2);
     ctx.stroke();
+
     ctx.beginPath();
     ctx.arc(9,-9,2,0,Math.PI*2);
     ctx.fill();
   }
+
   ctx.restore();
 }
 
@@ -555,6 +612,7 @@ function drawCompass(ctx,cx,cy) {
   const gradient=ctx.createRadialGradient(
     cx-32,cy-44,10,cx,cy,185
   );
+
   gradient.addColorStop(0,"#24372b");
   gradient.addColorStop(.7,"#0e1912");
   gradient.addColorStop(1,"#050b07");
@@ -574,33 +632,35 @@ function drawCompass(ctx,cx,cy) {
   ctx.arc(cx,cy,163,0,Math.PI*2);
   ctx.stroke();
 
-  // Gradmarkierungen
   for(let i=0;i<120;i++) {
     const a=i*Math.PI/60-Math.PI/2;
     const major=i%10===0;
     const inner=major?148:i%5===0?154:159;
+
     ctx.beginPath();
     ctx.moveTo(cx+Math.cos(a)*inner,cy+Math.sin(a)*inner);
     ctx.lineTo(cx+Math.cos(a)*163,cy+Math.sin(a)*163);
+
     ctx.strokeStyle=major
       ?"rgba(240,248,237,.9)"
       :"rgba(240,248,237,.5)";
+
     ctx.lineWidth=major?1.8:.8;
     ctx.stroke();
   }
 
-  // Richtungslinien
   ctx.strokeStyle="rgba(220,237,216,.18)";
   ctx.lineWidth=1;
+
   for(let i=0;i<8;i++) {
     const a=i*Math.PI/4;
+
     ctx.beginPath();
     ctx.moveTo(cx+Math.cos(a)*58,cy+Math.sin(a)*58);
     ctx.lineTo(cx+Math.cos(a)*115,cy+Math.sin(a)*115);
     ctx.stroke();
   }
 
-  // Rote/weisse Nadel
   ctx.save();
   ctx.translate(cx,cy);
   ctx.rotate(needleAngle);
@@ -622,25 +682,29 @@ function drawCompass(ctx,cx,cy) {
   ctx.lineTo(12,-8);
   ctx.closePath();
   ctx.fill();
+
   ctx.restore();
 
-  // Feste Social-Icons
   for(const item of SOCIAL) {
     const x=cx+Math.cos(item.angle)*compassRadius;
     const y=cy+Math.sin(item.angle)*compassRadius;
+
     ctx.fillStyle="#142019";
     ctx.beginPath();
     ctx.arc(x,y,27,0,Math.PI*2);
     ctx.fill();
+
     ctx.strokeStyle="rgba(234,245,230,.75)";
     ctx.lineWidth=1.5;
     ctx.stroke();
+
     socialIcon(ctx,item.name,x,y);
   }
 
   ctx.fillStyle="#15231a";
   ctx.strokeStyle="#e1ebe0";
   ctx.lineWidth=2;
+
   ctx.beginPath();
   ctx.arc(cx,cy,9,0,Math.PI*2);
   ctx.fill();
@@ -654,10 +718,278 @@ function drawCompass(ctx,cx,cy) {
   ctx.restore();
 }
 
+/* VISUALS — ANALOGER 3D-DIA-BETRACHTER */
+
+function drawVisualViewer(ctx,cx,iy,iw,ih) {
+  const image=visualImages[visualIndex];
+
+  // Abmessungen des Gehäuses
+  const bodyW=iw+112;
+  const bodyH=ih+100;
+  const bodyX=cx-bodyW/2;
+  const bodyY=iy-50;
+
+  const windowX=cx-iw/2+13;
+  const windowY=iy+13;
+  const windowW=iw-26;
+  const windowH=ih-26;
+
+  ctx.save();
+
+  // Weicher Schatten unter dem Gerät
+  ctx.shadowColor="rgba(0,0,0,.65)";
+  ctx.shadowBlur=28;
+  ctx.shadowOffsetY=13;
+
+  const bodyGradient=ctx.createLinearGradient(
+    bodyX,bodyY,bodyX+bodyW,bodyY+bodyH
+  );
+
+  bodyGradient.addColorStop(0,"#75816e");
+  bodyGradient.addColorStop(.18,"#3b493b");
+  bodyGradient.addColorStop(.55,"#1b281f");
+  bodyGradient.addColorStop(.82,"#354334");
+  bodyGradient.addColorStop(1,"#101811");
+
+  ctx.fillStyle=bodyGradient;
+  ctx.beginPath();
+  ctx.roundRect(bodyX,bodyY,bodyW,bodyH,30);
+  ctx.fill();
+
+  ctx.restore();
+
+  // Äussere Gehäusekante
+  ctx.save();
+
+  ctx.strokeStyle="rgba(218,231,207,.65)";
+  ctx.lineWidth=3;
+  ctx.beginPath();
+  ctx.roundRect(bodyX,bodyY,bodyW,bodyH,30);
+  ctx.stroke();
+
+  ctx.strokeStyle="rgba(0,0,0,.65)";
+  ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.roundRect(bodyX+7,bodyY+7,bodyW-14,bodyH-14,24);
+  ctx.stroke();
+
+  // Lichtkante oben
+  const highlight=ctx.createLinearGradient(
+    bodyX,bodyY,bodyX+bodyW,bodyY
+  );
+
+  highlight.addColorStop(0,"rgba(255,255,255,0)");
+  highlight.addColorStop(.25,"rgba(255,255,255,.2)");
+  highlight.addColorStop(.75,"rgba(255,255,255,.08)");
+  highlight.addColorStop(1,"rgba(255,255,255,0)");
+
+  ctx.strokeStyle=highlight;
+  ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.moveTo(bodyX+32,bodyY+10);
+  ctx.lineTo(bodyX+bodyW-32,bodyY+10);
+  ctx.stroke();
+
+  // Schrauben am Gehäuse
+  const screwPositions=[
+    [bodyX+22,bodyY+22],
+    [bodyX+bodyW-22,bodyY+22],
+    [bodyX+22,bodyY+bodyH-22],
+    [bodyX+bodyW-22,bodyY+bodyH-22]
+  ];
+
+  for(const [sx,sy] of screwPositions) {
+    ctx.fillStyle="#101711";
+    ctx.beginPath();
+    ctx.arc(sx,sy,6,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.strokeStyle="rgba(221,232,213,.55)";
+    ctx.lineWidth=1.5;
+    ctx.stroke();
+
+    ctx.strokeStyle="rgba(0,0,0,.8)";
+    ctx.beginPath();
+    ctx.moveTo(sx-3,sy+3);
+    ctx.lineTo(sx+3,sy-3);
+    ctx.stroke();
+  }
+
+  // Dunkler Rahmen um das Sichtfenster
+  const frameGradient=ctx.createLinearGradient(
+    windowX,windowY,windowX,windowY+windowH
+  );
+
+  frameGradient.addColorStop(0,"#050906");
+  frameGradient.addColorStop(.5,"#18231b");
+  frameGradient.addColorStop(1,"#050906");
+
+  ctx.fillStyle=frameGradient;
+  ctx.beginPath();
+  ctx.roundRect(
+    windowX-13,windowY-13,
+    windowW+26,windowH+26,14
+  );
+  ctx.fill();
+
+  ctx.strokeStyle="rgba(210,225,200,.65)";
+  ctx.lineWidth=3;
+  ctx.stroke();
+
+  // Bild im Sichtfenster
+  ctx.save();
+
+  ctx.beginPath();
+  ctx.roundRect(windowX,windowY,windowW,windowH,5);
+  ctx.clip();
+
+  if(image) {
+    cover(ctx,image,windowX,windowY,windowW,windowH);
+  } else {
+    ctx.fillStyle="#101811";
+    ctx.fillRect(windowX,windowY,windowW,windowH);
+  }
+
+  // Leichte Glasreflexion
+  const reflection=ctx.createLinearGradient(
+    windowX,windowY,
+    windowX+windowW*.8,windowY+windowH
+  );
+
+  reflection.addColorStop(0,"rgba(255,255,255,.18)");
+  reflection.addColorStop(.35,"rgba(255,255,255,.035)");
+  reflection.addColorStop(1,"rgba(255,255,255,0)");
+
+  ctx.fillStyle=reflection;
+  ctx.fillRect(windowX,windowY,windowW,windowH);
+
+  ctx.restore();
+
+  // Kleine Beschriftung
+  ctx.fillStyle="rgba(224,235,216,.8)";
+  ctx.font="bold 15px 'DM Mono', monospace";
+  ctx.textAlign="center";
+  ctx.textBaseline="middle";
+  ctx.fillText("CAMOU  /  VIEWER",cx,bodyY+bodyH-15);
+
+  // Seitlicher mechanischer Zughebel
+  const leverX=cx+iw/2+43;
+  const leverTop=iy+15;
+  const leverBottom=iy+ih*.72;
+  const knobY=leverTop+(leverBottom-leverTop)*.30;
+
+  // Vertikale Führung
+  const railGradient=ctx.createLinearGradient(
+    leverX-9,0,leverX+9,0
+  );
+
+  railGradient.addColorStop(0,"#090e0a");
+  railGradient.addColorStop(.5,"#a7b39b");
+  railGradient.addColorStop(1,"#101711");
+
+  ctx.fillStyle=railGradient;
+  ctx.beginPath();
+  ctx.roundRect(
+    leverX-8,leverTop,
+    16,leverBottom-leverTop,8
+  );
+  ctx.fill();
+
+  ctx.strokeStyle="rgba(220,232,212,.65)";
+  ctx.lineWidth=1.5;
+  ctx.stroke();
+
+  // Hebelstange
+  const rodGradient=ctx.createLinearGradient(
+    leverX-5,0,leverX+5,0
+  );
+
+  rodGradient.addColorStop(0,"#151c16");
+  rodGradient.addColorStop(.45,"#d1d9c9");
+  rodGradient.addColorStop(1,"#394638");
+
+  ctx.strokeStyle=rodGradient;
+  ctx.lineWidth=9;
+  ctx.lineCap="round";
+  ctx.beginPath();
+  ctx.moveTo(leverX,knobY);
+  ctx.lineTo(leverX,knobY+38);
+  ctx.stroke();
+
+  // Hebelknauf
+  const knobGradient=ctx.createRadialGradient(
+    leverX-8,knobY-8,2,
+    leverX,knobY,23
+  );
+
+  knobGradient.addColorStop(0,"#dce5d3");
+  knobGradient.addColorStop(.35,"#82917a");
+  knobGradient.addColorStop(.75,"#354333");
+  knobGradient.addColorStop(1,"#111a12");
+
+  ctx.fillStyle=knobGradient;
+  ctx.beginPath();
+  ctx.arc(leverX,knobY,22,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.strokeStyle="rgba(225,237,215,.85)";
+  ctx.lineWidth=2;
+  ctx.stroke();
+
+  // Kleiner Richtungspfeil unter dem Hebel
+  ctx.fillStyle="rgba(226,237,218,.85)";
+  ctx.font="bold 22px Arial";
+  ctx.textAlign="center";
+  ctx.fillText("↓",leverX,leverBottom+25);
+
+  // Bildnummer
+  ctx.fillStyle="#dce7d5";
+  ctx.font="bold 15px 'DM Mono', monospace";
+  ctx.textAlign="right";
+  ctx.fillText(
+    `${String(visualIndex+1).padStart(2,"0")} / ${String(visualImages.length).padStart(2,"0")}`,
+    bodyX+bodyW-25,
+    bodyY+bodyH-15
+  );
+
+  ctx.restore();
+}
+
+function advanceVisualSlide() {
+  if(!visualImages.length) return;
+
+  visualIndex=(visualIndex+1)%visualImages.length;
+  refreshVisualsTexture();
+}
+
+function refreshVisualsTexture() {
+  if(!globeTexture || !baseTextureCanvas || !globeContext) return;
+
+  const w=4096;
+  const h=2048;
+  const pw=w/5;
+  const cx=w*(.25+2/5);
+  const x=cx-pw/2;
+
+  globeContext.save();
+  globeContext.beginPath();
+  globeContext.rect(x,0,pw,h);
+  globeContext.clip();
+
+  globeContext.drawImage(baseTextureCanvas,0,0);
+
+  globeContext.restore();
+
+  drawWrappedPanel(globeContext,2,visualImages[visualIndex]);
+
+  globeTexture.needsUpdate=true;
+}
+
 /* BEREICHE ZEICHNEN */
 
 function drawPanel(ctx,section,image,cx,pw,h) {
   const x=cx-pw/2;
+
   ctx.save();
   ctx.beginPath();
   ctx.rect(x,0,pw,h);
@@ -682,13 +1014,16 @@ function drawPanel(ctx,section,image,cx,pw,h) {
     :"300 58px Manrope, Arial";
 
   const titleY=h*.31;
+
   section.title.forEach((line,i)=>{
     ctx.fillText(line,cx,titleY+i*76,contentW);
   });
 
   const bodyStart=titleY+(section.title.length-1)*76+100;
+
   ctx.fillStyle="rgba(235,239,230,.86)";
   ctx.font="300 22px Manrope, Arial";
+
   section.body.forEach((line,i)=>{
     ctx.fillText(line,cx,bodyStart+i*43,contentW);
   });
@@ -696,6 +1031,7 @@ function drawPanel(ctx,section,image,cx,pw,h) {
   if(section.extra) {
     ctx.fillStyle="#c1d0b7";
     ctx.font="500 18px 'DM Mono', monospace";
+
     section.extra.forEach((line,i)=>{
       ctx.fillText(
         line,cx,
@@ -710,6 +1046,10 @@ function drawPanel(ctx,section,image,cx,pw,h) {
 
   if(section.name==="ECHOES") {
     drawCompass(ctx,cx,iy+ih/2);
+
+  } else if(section.name==="VISUALS") {
+    drawVisualViewer(ctx,cx,iy,iw,ih);
+
   } else {
     ctx.fillStyle="rgba(8,13,10,.9)";
     ctx.fillRect(ix-8,iy-8,iw+16,ih+16);
@@ -725,10 +1065,12 @@ function drawPanel(ctx,section,image,cx,pw,h) {
       cover(ctx,homeVideo,ix,iy,iw,ih);
     } else {
       cover(ctx,image,ix,iy,iw,ih);
+
       if(section.name==="HOME") {
         playButton(ctx,cx,iy+ih/2);
       }
     }
+
     ctx.restore();
 
     if(section.name==="MUSIC" ||
@@ -752,6 +1094,7 @@ function drawPanel(ctx,section,image,cx,pw,h) {
 
   ctx.fillStyle="rgba(232,239,226,.62)";
   ctx.font="19px 'DM Mono', monospace";
+
   ctx.fillText(
     `${String(sections.indexOf(section)+1).padStart(2,"0")} / 05`,
     cx,h*.92
@@ -763,10 +1106,13 @@ function drawPanel(ctx,section,image,cx,pw,h) {
 function drawWrappedPanel(ctx,index,image) {
   const w=4096,h=2048,pw=w/5;
   const cx=w*(.25+index/5);
+
   drawPanel(ctx,sections[index],image,cx,pw,h);
+
   if(cx-pw/2<0) {
     drawPanel(ctx,sections[index],image,cx+w,pw,h);
   }
+
   if(cx+pw/2>w) {
     drawPanel(ctx,sections[index],image,cx-w,pw,h);
   }
@@ -775,24 +1121,42 @@ function drawWrappedPanel(ctx,index,image) {
 async function createGlobeTexture() {
   const images=await Promise.all(
     [
-      ASSETS.home,ASSETS.music,ASSETS.visuals,
-      ASSETS.archive,ASSETS.contact
+      ASSETS.home,
+      ASSETS.music,
+      ASSETS.visuals,
+      ASSETS.archive,
+      ASSETS.contact
     ].map(loadImage)
   );
 
+  // Alle vier Bilder des Dia-Betrachters laden
+  visualImages=await Promise.all(
+    ASSETS.visualSlides.map(loadImage)
+  );
+
+  visualIndex=0;
   echoesImage=images[3];
 
   globeCanvas=document.createElement("canvas");
   globeCanvas.width=4096;
   globeCanvas.height=2048;
+
   globeContext=globeCanvas.getContext("2d");
 
   drawBackground(globeContext,4096,2048);
-  images.forEach((img,i)=>drawWrappedPanel(globeContext,i,img));
+
+  images.forEach((img,i)=>{
+    drawWrappedPanel(
+      globeContext,
+      i,
+      i===2 ? visualImages[0] : img
+    );
+  });
 
   baseTextureCanvas=document.createElement("canvas");
   baseTextureCanvas.width=4096;
   baseTextureCanvas.height=2048;
+
   baseTextureCanvas.getContext("2d")
     .drawImage(globeCanvas,0,0);
 
@@ -825,10 +1189,15 @@ function updateHomeVideoFrame() {
   globeContext.beginPath();
   globeContext.rect(ix,iy,iw,ih);
   globeContext.clip();
+
   cover(globeContext,homeVideo,ix,iy,iw,ih);
+
   globeContext.restore();
 
-  if(homeVideo.paused) playButton(globeContext,cx,iy+ih/2);
+  if(homeVideo.paused) {
+    playButton(globeContext,cx,iy+ih/2);
+  }
+
   globeTexture.needsUpdate=true;
 }
 
@@ -843,10 +1212,13 @@ function refreshEchoesTexture() {
   globeContext.beginPath();
   globeContext.rect(x,0,pw,h);
   globeContext.clip();
+
   globeContext.drawImage(baseTextureCanvas,0,0);
+
   globeContext.restore();
 
   drawPanel(globeContext,sections[3],echoesImage,cx,pw,h);
+
   globeTexture.needsUpdate=true;
 }
 
@@ -859,7 +1231,9 @@ function currentIndex() {
 
 function updateIndicator() {
   const index=currentIndex();
+
   $("current-section").textContent=sections[index].name;
+
   $("section-number").textContent=
     `${String(index+1).padStart(2,"0")} / 05`;
 
@@ -872,6 +1246,7 @@ function updateIndicator() {
 
   if(index===3 && sensorCheck.checked) {
     sensorStatus.textContent=motionStatus;
+
   } else if(index===3 && !sensorCheck.checked &&
             performance.now()-motionLastAt<2000) {
     sensorStatus.textContent="Sensor automatisch verfügbar";
@@ -880,14 +1255,17 @@ function updateIndicator() {
 
 function goToSection(index) {
   const i=((index%5)+5)%5;
+
   rotationX=0;
   velocityX=velocityY=0;
   isDragging=false;
   pointers.clear();
   pointerStart=null;
+
   stage.classList.remove("dragging");
 
   let dest=-i*sectionStep;
+
   while(dest-rotationY>Math.PI) dest-=2*Math.PI;
   while(dest-rotationY< -Math.PI) dest+=2*Math.PI;
 
@@ -911,36 +1289,46 @@ $("logo").addEventListener("click",e=>{
 const spotifyModal=$("spotify-modal");
 const spotifyPlayer=$("spotify-modal-player");
 const spotifyClose=$("spotify-modal-close");
+
 let spotifyOpen=false;
 
 if(spotifyModal) document.body.appendChild(spotifyModal);
 
 function openSpotifyModal() {
   if(!spotifyModal || spotifyOpen) return;
+
   spotifyOpen=true;
   velocityX=velocityY=0;
   isDragging=false;
   menuAnimating=false;
+
   spotifyModal.hidden=false;
   spotifyModal.style.display="flex";
+
   document.body.classList.add("spotify-dialog-open");
+
   if(spotifyPlayer) {
     spotifyPlayer.src=spotifyPlayer.dataset.src ||
       "https://open.spotify.com/embed/artist/7pajHvUWNCnOPhDPyH4M6x?theme=0";
   }
+
   spotifyClose?.focus({preventScroll:true});
 }
 
 function closeSpotifyModal() {
   if(!spotifyModal) return;
+
   spotifyOpen=false;
   spotifyModal.hidden=true;
   spotifyModal.style.display="none";
+
   document.body.classList.remove("spotify-dialog-open");
+
   spotifyPlayer?.removeAttribute("src");
 }
 
 spotifyClose?.addEventListener("click",closeSpotifyModal);
+
 spotifyModal?.addEventListener("pointerdown",e=>{
   if(e.target===spotifyModal ||
      e.target.closest?.("[data-close-spotify]")) {
@@ -966,26 +1354,33 @@ if(contactModal) document.body.appendChild(contactModal);
 
 function openContactModal() {
   if(!contactModal || contactOpen) return;
+
   contactOpen=true;
   velocityX=velocityY=0;
   isDragging=false;
   menuAnimating=false;
+
   contactModal.hidden=false;
   contactModal.style.display="flex";
+
   document.body.classList.add("contact-dialog-open");
+
   contactModal.querySelector('input[name="name"]')
     ?.focus({preventScroll:true});
 }
 
 function closeContactModal() {
   if(!contactModal) return;
+
   contactOpen=false;
   contactModal.hidden=true;
   contactModal.style.display="none";
+
   document.body.classList.remove("contact-dialog-open");
 }
 
 contactClose?.addEventListener("click",closeContactModal);
+
 contactModal?.addEventListener("click",e=>{
   if(e.target===contactModal ||
      e.target.closest?.("[data-close-contact]")) {
@@ -995,14 +1390,19 @@ contactModal?.addEventListener("click",e=>{
 
 contactForm?.addEventListener("submit",async e=>{
   e.preventDefault();
+
   if(contactSending || !contactForm.reportValidity()) return;
 
   contactSending=true;
+
   if(contactSubmit) contactSubmit.disabled=true;
-  if(contactStatus) contactStatus.textContent=
-    "Nachricht wird übertragen …";
+
+  if(contactStatus) {
+    contactStatus.textContent="Nachricht wird übertragen …";
+  }
 
   const data=new FormData(contactForm);
+
   data.set("privacy","zugestimmt");
   data.set("website","");
 
@@ -1012,14 +1412,22 @@ contactForm?.addEventListener("submit",async e=>{
       body:data,
       mode:"no-cors"
     });
-    if(contactStatus) contactStatus.textContent=
-      "Übertragung abgeschlossen. Empfang nicht bestätigt.";
+
+    if(contactStatus) {
+      contactStatus.textContent=
+        "Übertragung abgeschlossen. Empfang nicht bestätigt.";
+    }
+
   } catch(error) {
     console.error(error);
-    if(contactStatus) contactStatus.textContent=
-      "Übertragung fehlgeschlagen.";
+
+    if(contactStatus) {
+      contactStatus.textContent="Übertragung fehlgeschlagen.";
+    }
+
   } finally {
     contactSending=false;
+
     if(contactSubmit) contactSubmit.disabled=false;
   }
 });
@@ -1028,15 +1436,21 @@ contactForm?.addEventListener("submit",async e=>{
 
 function texturePoint(e) {
   const rect=renderer.domElement.getBoundingClientRect();
+
   pointer.set(
     (e.clientX-rect.left)/rect.width*2-1,
     -((e.clientY-rect.top)/rect.height*2-1)
   );
+
   globeGroup.updateMatrixWorld(true);
   camera.updateMatrixWorld(true);
+
   raycaster.setFromCamera(pointer,camera);
+
   const hit=raycaster.intersectObject(globe)[0];
+
   if(!hit?.uv) return null;
+
   return {
     x:hit.uv.x*4096,
     y:(1-hit.uv.y)*2048
@@ -1055,9 +1469,28 @@ function inImage(point,index) {
     point.y<=2048*(.475+.19);
 }
 
+// Prüft, ob der Klick auf dem seitlichen Dia-Hebel liegt
+function isOnVisualLever(point) {
+  if(!point) return false;
+
+  const dx=localX(point,2);
+  const iw=4096/5*.56;
+
+  const leverX=iw/2+43;
+  const leverTop=2048*.475+15;
+  const leverBottom=2048*.475+2048*.19*.72;
+
+  return (
+    Math.abs(dx-leverX)<38 &&
+    point.y>=leverTop-28 &&
+    point.y<=leverBottom+35
+  );
+}
+
 function handleGlobeClick(e) {
   const index=currentIndex();
   const p=texturePoint(e);
+
   if(!p) return;
 
   if(index===1 && inImage(p,1)) {
@@ -1073,12 +1506,14 @@ function handleGlobeClick(e) {
   if(index===3) {
     const dx=localX(p,3);
     const dy=p.y-compassCenterY;
+
     const link=SOCIAL.find(s=>
       Math.hypot(
         dx-Math.cos(s.angle)*compassRadius,
         dy-Math.sin(s.angle)*compassRadius
       )<32
     );
+
     if(link) {
       window.open(link.url,"_blank","noopener,noreferrer");
       return;
@@ -1095,11 +1530,13 @@ function handleGlobeClick(e) {
   }
 
   homeVideoStarting=true;
+
   homeVideo.play().then(()=>{
     homeVideoStarted=true;
     homeVideoPlaying=true;
     homeVideoStarting=false;
     updateHomeVideoFrame();
+
   }).catch(error=>{
     homeVideoStarting=false;
     console.error(error);
@@ -1117,9 +1554,11 @@ function setZoom(value) {
 $("zoom-in")?.addEventListener("click",()=>{
   setZoom(currentZoom-.7);
 });
+
 $("zoom-out")?.addEventListener("click",()=>{
   setZoom(currentZoom+.7);
 });
+
 $("zoom-reset")?.addEventListener("click",()=>{
   setZoom(defaultZoom);
 });
@@ -1134,8 +1573,10 @@ for(const type of [
 
 stage.addEventListener("wheel",e=>{
   if(e.target.closest(".zoom-controls")) return;
+
   e.preventDefault();
   setZoom(currentZoom+e.deltaY*.008);
+
 },{passive:false});
 
 /* DRAG UND TOUCH */
@@ -1146,8 +1587,25 @@ stage.addEventListener("pointerdown",e=>{
   if(spotifyOpen || contactOpen ||
      e.target!==renderer.domElement) return;
 
+  // Zuerst prüfen, ob der Dia-Hebel berührt wurde
+  if(currentIndex()===2) {
+    const p=texturePoint(e);
+
+    if(isOnVisualLever(p)) {
+      visualLeverPointer=e.pointerId;
+      visualLeverMoved=false;
+      visualLeverStartY=e.clientY;
+
+      stage.setPointerCapture(e.pointerId);
+
+      // Keine normale Globus-Drehung starten
+      return;
+    }
+  }
+
   pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
   pointerStart={x:e.clientX,y:e.clientY};
+
   stage.setPointerCapture(e.pointerId);
 
   if(pointers.size===1) {
@@ -1155,28 +1613,50 @@ stage.addEventListener("pointerdown",e=>{
     previousX=e.clientX;
     previousY=e.clientY;
     lastTime=performance.now();
+
     velocityX=velocityY=0;
     menuAnimating=false;
+
     stage.classList.add("dragging");
     $("hint")?.classList.add("hidden");
+
   } else if(pointers.size===2) {
     isDragging=false;
     pointerStart=null;
+
     const pts=[...pointers.values()];
+
     pinchDistance=distance(pts[0],pts[1]);
     pinchZoom=currentZoom;
   }
 });
 
 stage.addEventListener("pointermove",e=>{
+  // Dia-Hebel: nach unten ziehen
+  if(visualLeverPointer===e.pointerId) {
+    const pullDistance=e.clientY-visualLeverStartY;
+
+    if(pullDistance>35 && !visualLeverMoved) {
+      visualLeverMoved=true;
+      advanceVisualSlide();
+    }
+
+    return;
+  }
+
   if(!pointers.has(e.pointerId)) return;
+
   pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
 
   if(pointers.size>=2) {
     const pts=[...pointers.values()];
+
     if(pinchDistance>0) {
-      setZoom(pinchZoom/(distance(pts[0],pts[1])/pinchDistance));
+      setZoom(
+        pinchZoom/(distance(pts[0],pts[1])/pinchDistance)
+      );
     }
+
     return;
   }
 
@@ -1184,8 +1664,10 @@ stage.addEventListener("pointermove",e=>{
 
   const now=performance.now();
   const dt=Math.max(1,now-lastTime);
+
   const dx=e.clientX-previousX;
   const dy=e.clientY-previousY;
+
   const factor=Math.min(dt/16,2);
 
   const mx=dx*CONFIG.dragSpeed;
@@ -1193,16 +1675,31 @@ stage.addEventListener("pointermove",e=>{
 
   rotationY+=mx;
   rotationX+=my;
+
   velocityY=mx/factor;
   velocityX=my/factor;
 
   previousX=e.clientX;
   previousY=e.clientY;
   lastTime=now;
+
   updateIndicator();
 });
 
 function releasePointer(e) {
+  // Dia-Hebel separat behandeln
+  if(visualLeverPointer===e.pointerId) {
+    if(e.type==="pointerup" && !visualLeverMoved) {
+      // Ein einfacher Klick schaltet ebenfalls weiter
+      advanceVisualSlide();
+    }
+
+    visualLeverPointer=null;
+    visualLeverMoved=false;
+
+    return;
+  }
+
   if(!pointers.has(e.pointerId)) return;
 
   if(e.type==="pointerup" && pointerStart &&
@@ -1219,11 +1716,14 @@ function releasePointer(e) {
   if(pointers.size===0) {
     isDragging=false;
     stage.classList.remove("dragging");
+
   } else if(pointers.size===1) {
     const p=[...pointers.values()][0];
+
     previousX=p.x;
     previousY=p.y;
     lastTime=performance.now();
+
     velocityX=velocityY=0;
     isDragging=true;
   }
@@ -1243,6 +1743,7 @@ window.addEventListener("keydown",e=>{
   }
 
   if(spotifyOpen || contactOpen) return;
+
   if(["INPUT","TEXTAREA","SELECT"].includes(
     document.activeElement?.tagName
   )) return;
@@ -1263,16 +1764,21 @@ function animate(now=0) {
 
   if(!isDragging && menuAnimating) {
     const delta=targetRotationY-rotationY;
+
     rotationY+=delta*.055;
+
     if(Math.abs(delta)<.001) {
       rotationY=targetRotationY;
       menuAnimating=false;
     }
+
   } else if(!isDragging) {
     rotationY+=velocityY;
     rotationX+=velocityX;
+
     velocityY*=CONFIG.friction;
     velocityX*=CONFIG.friction;
+
     if(Math.abs(velocityY)<.00004) velocityY=0;
     if(Math.abs(velocityX)<.00004) velocityX=0;
   }
@@ -1281,10 +1787,9 @@ function animate(now=0) {
 
   if(homeVideoPlaying) updateHomeVideoFrame();
 
-  // Nur bei fehlenden Sensordaten wird
-  // die Kugeldrehung als Ersatz verwendet.
   const deltaX=rotationX-lastGlobeX;
   const deltaY=rotationY-lastGlobeY;
+
   lastGlobeX=rotationX;
   lastGlobeY=rotationY;
 
@@ -1302,8 +1807,10 @@ function animate(now=0) {
     : fallbackAngle;
 
   const delta=wrapAngle(targetNeedleAngle-needleAngle);
+
   if(Math.abs(delta)>.0005) {
     needleAngle=wrapAngle(needleAngle+delta*.12);
+
     if(currentIndex()===3 && now-lastCompassDraw>32) {
       refreshEchoesTexture();
       lastCompassDraw=now;
@@ -1321,12 +1828,15 @@ requestAnimationFrame(animate);
 function resize() {
   const w=Math.max(1,container.clientWidth);
   const h=Math.max(1,container.clientHeight);
+
   camera.aspect=w/h;
   camera.updateProjectionMatrix();
+
   renderer.setSize(w,h);
   renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 }
 
 window.addEventListener("resize",resize);
+
 setZoom(defaultZoom);
 updateIndicator();
