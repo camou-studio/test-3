@@ -724,8 +724,7 @@ function drawPanel(
   // Der echte Spotify-Player wird als HTML-Iframe exakt über diesem
   // Bildrahmen positioniert (siehe updateMusicFramePosition).
   if (section.name === "MUSIC") {
-    ctx.fillStyle = "#151515";
-    ctx.fillRect(imageX, imageY, imageW, imageH);
+    // Keine dunkle Platzhalterfläche hinter dem Spotify-Player.
   }
   ctx.restore();
 
@@ -1249,8 +1248,8 @@ function updateMusicFramePosition() {
   // Die native iframe-Fläche erhält direkt die projizierte Grösse des HOME-Videofensters.
   const angle = Math.atan2(vy,vx);
   musicFrame.hidden = false;
-  musicFrame.style.width = `${projectedW}px`;
-  musicFrame.style.height = `${projectedH}px`;
+  musicFrame.style.width = `${projectedW * 1.12}px`;
+  musicFrame.style.height = `${projectedH * 1.18}px`;
   musicFrame.style.transform =
     `translate(${cx}px, ${cy}px) rotate(${angle}rad) translate(-50%, -50%)`;
 }

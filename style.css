@@ -405,8 +405,9 @@ a {
 .footer-impressum:hover { color:var(--fg); }
 .footer-signature { margin-left:auto; text-align:right; }
 
-/* Spotify bleibt vollständig innerhalb des originalgrossen Musik-Bildrahmens.
-   Kein Verschieben oder Abschneiden des offiziellen Embeds. */
+/* Der sichtbare Player liegt ohne Hintergrundplatte auf der Kugel.
+   Das Spotify-iframe ist bewusst höher als der sichtbare Ausschnitt,
+   damit Spotify die ausführliche Songliste statt des kompakten Players rendert. */
 .music-frame-on-globe[hidden] { display: none !important; }
 .music-frame-on-globe {
   position: absolute;
@@ -417,24 +418,29 @@ a {
   z-index: 6;
   transform-origin: 0 0;
   overflow: hidden;
-  background: #121212;
-  border: 0;
-  border-radius: 0;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
   backface-visibility: hidden;
   will-change: transform;
   pointer-events: auto;
-  touch-action: pan-y;
 }
 .spotify-list-viewport {
   width: 100%;
   height: 100%;
-  overflow: hidden;
-  background: #121212;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #525852 transparent;
+  background: transparent;
+  touch-action: pan-y;
 }
 #music-spotify-frame {
   display: block;
   width: 100%;
-  height: 100%;
+  height: 720px;
+  min-height: 720px;
   border: 0;
-  background: #121212;
+  background: transparent;
 }
