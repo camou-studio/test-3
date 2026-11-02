@@ -1178,30 +1178,86 @@ function startHomeVideoFromClick(event) {
 /* =========================================
    SPOTIFY-MODAL – Bild auf der Kugel anklicken
 ========================================= */
-const spotifyModal = document.getElementById("spotify-modal");
-const spotifyPlayer = document.getElementById("spotify-modal-player");
-const spotifyClose = document.getElementById("spotify-modal-close");
+
+/* =========================================
+   SPOTIFY-MODAL
+   Öffnen / Schliessen / Tastatur
+========================================= */
+
+const spotifyModal =
+  document.getElementById("spotify-modal");
+
+const spotifyPlayer =
+  document.getElementById("spotify-modal-player");
+
+const spotifyClose =
+  document.getElementById("spotify-modal-close");
+
 let spotifyOpen = false;
+
 function openSpotifyModal() {
+  if (!spotifyModal || !spotifyPlayer) return;
+
   spotifyOpen = true;
+
   spotifyModal.hidden = false;
-  if (!spotifyPlayer.hasAttribute("src")) {
+  spotifyModal.style.display = "flex";
+
+  document.body.classList.add("spotify-dialog-open");
+
+  if (!spotifyPlayer.getAttribute("src")) {
     spotifyPlayer.src = spotifyPlayer.dataset.src;
   }
-  velocityX = 0; velocityY = 0;
-  spotifyClose.focus();
+
+  velocityX = 0;
+  velocityY = 0;
+
+  if (spotifyClose) {
+    spotifyClose.focus();
+  }
 }
+
 function closeSpotifyModal() {
+  if (!spotifyModal) return;
+
   spotifyOpen = false;
+
   spotifyModal.hidden = true;
-  // Player stoppen, wenn Dialog geschlossen wird.
-  spotifyPlayer.removeAttribute("src");
+  spotifyModal.style.display = "none";
+
+  document.body.classList.remove("spotify-dialog-open");
+
+  if (spotifyPlayer) {
+    spotifyPlayer.removeAttribute("src");
+  }
 }
-spotifyClose.addEventListener("click", closeSpotifyModal);
-spotifyModal.querySelector("[data-close-spotify]").addEventListener("click", closeSpotifyModal);
-window.addEventListener("keydown", event => {
-  if (spotifyOpen && event.key === "Escape") { event.preventDefault(); closeSpotifyModal(); }
+
+if (spotifyClose) {
+  spotifyClose.addEventListener("click", function(event) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    closeSpotifyModal();
+  });
+}
+
+if (spotifyModal) {
+  spotifyModal.addEventListener("click", function(event) {
+    if (
+      event.target === spotifyModal ||
+      event.target.hasAttribute("data-close-spotify")
+    ) {
+      closeSpotifyModal();
+    }
+  });
+}
+
+window.addEventListener("keydown", function(event) {
+  if (spotifyOpen && event.key === "Escape") {
+    event.preventDefault();
+    closeSpotifyModal();
+  }
 }, true);
+
 function handleMusicImageClick(event) {
   if (currentIndex() !== 1 || !pointerStart || !globeTexture) return false;
   if (Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) > 7) return false;
