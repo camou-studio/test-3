@@ -2266,7 +2266,7 @@ spotifyModal?.addEventListener(
 ========================================= */
 
 const CONTACT_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycby3SfFxFDJQZNL0PxI75Z0O_HyDZl_MoC2b8jcW5PLy0kwPAuiOnK9macrxFTaUboXftg/exec";
+  "https://script.google.com/macros/s/AKfycbyx-lPLqnkym7hppwVxu4sTedAtXpAL5iedagg8aA48DiOWKDtELm6nwU4O8Se0In9z/exec";
 
 const contactModal = $("contact-modal");
 const contactForm = $("contact-form");
@@ -2367,7 +2367,7 @@ contactForm?.addEventListener(
 
     const data = new FormData(contactForm);
 
-    data.set("privacy", "zugestimmt");
+    data.set("privacy", "on");
     data.set("website", "");
 
     try {
