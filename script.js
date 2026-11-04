@@ -1,4 +1,3 @@
-
 import * as THREE from "three";
 
 /* =========================================
@@ -38,7 +37,7 @@ const sections = [
   {
     name: "HOME",
     poleLetter: "c",
-    eyebrow: "NEW PROJECT / 001",
+    eyebrow: "01 — NEW Project",
     title: ["c a m o u"],
     body: ["Gleiche Fragen.", "Neue Perspektiven."],
     image: ASSETS.home
@@ -46,11 +45,12 @@ const sections = [
   {
     name: "MUSIC",
     poleLetter: "a",
-    eyebrow: "LATEST RELEASE",
+    eyebrow: "02 — Releases",
     title: ["f r a g m e n t e"],
     body: [
-      "Ein Song zwischen Licht und Schatten.",
-      "Zwischen dem, was man sieht –",
+      "vom Wind getragen,",
+       "zwischen Licht und Schatten.",
+      "zwischen dem, was man sieht ",
       "und dem, was bleibt."
     ],
     image: ASSETS.music
@@ -58,7 +58,7 @@ const sections = [
   {
     name: "VISUALS",
     poleLetter: "m",
-    eyebrow: "02 — VISUAL WORK",
+    eyebrow: "03 — VISUAL WORK",
     title: ["Visuals"],
     body: [
       "Bilder, die bleiben.",
@@ -69,25 +69,26 @@ const sections = [
   {
     name: "ECHOES",
     poleLetter: "o",
-    eyebrow: "03 — SELECTED WORKS",
+    eyebrow: "04 — Elsewhere",
     title: ["Echoes"],
     body: [
       "Songs und Spuren, die an",
-      "verschiedenen Orten widerhallen."
+      "verschiedenen Orten widerhallen.",
+      "Folge Ihnen"
     ],
     image: ASSETS.archive
   },
   {
     name: "CONTACT",
     poleLetter: "u",
-    eyebrow: "04 — GET IN TOUCH",
+    eyebrow: "05 — GET IN TOUCH",
     title: ["Contact"],
     body: [
       "Für Anfragen und Zusammenarbeit.",
-      "Oder einfach für ein Gespräch."
+      "Oder einfach so."
     ],
     image: ASSETS.contact,
-    extra: ["camou.kontakt@gmail.com"]
+    extra: [""]
   }
 ];
 
@@ -286,6 +287,7 @@ let globeCanvas = null;
 let globeContext = null;
 let globeTexture = null;
 let baseTextureCanvas = null;
+let sceneNeedsRender = true;
 
 let echoesImage = null;
 
@@ -309,12 +311,54 @@ const homeVideo = document.createElement("video");
 homeVideo.src = ASSETS.homeVideo;
 homeVideo.loop = true;
 homeVideo.playsInline = true;
-homeVideo.preload = "auto";
+homeVideo.preload = "none";
 homeVideo.volume = 1;
 
 let homeVideoStarted = false;
 let homeVideoPlaying = false;
 let homeVideoStarting = false;
+
+/* =========================================
+   VIDEO-FRAME-OPTIMIERUNG
+========================================= */
+
+let homeVideoFrameRequest = null;
+let lastVideoFallbackPaint = 0;
+
+function startHomeVideoFrameUpdates() {
+  if (
+    homeVideoFrameRequest !== null ||
+    typeof homeVideo.requestVideoFrameCallback !== "function"
+  ) return;
+
+  const onVideoFrame = () => {
+    homeVideoFrameRequest = null;
+
+    if (!homeVideoPlaying) return;
+
+    updateHomeVideoFrame();
+
+    homeVideoFrameRequest =
+      homeVideo.requestVideoFrameCallback(onVideoFrame);
+  };
+
+  homeVideoFrameRequest =
+    homeVideo.requestVideoFrameCallback(onVideoFrame);
+}
+
+function stopHomeVideoFrameUpdates() {
+  if (
+    homeVideoFrameRequest !== null &&
+    typeof homeVideo.cancelVideoFrameCallback === "function"
+  ) {
+    homeVideo.cancelVideoFrameCallback(
+      homeVideoFrameRequest
+    );
+  }
+
+  homeVideoFrameRequest = null;
+}
+
 
 /* =========================================
    BILDER LADEN
@@ -457,17 +501,17 @@ function sectionColor(position, vertical) {
 function drawBackground(ctx, width, height) {
   const small = document.createElement("canvas");
 
-  small.width = 1024;
-  small.height = 512;
+  small.width = 512;
+  small.height = 256;
 
   const g = small.getContext("2d");
-  const image = g.createImageData(1024, 512);
+  const image = g.createImageData(512, 256);
 
-  for (let y = 0; y < 512; y++) {
-    const v = y / 511;
+  for (let y = 0; y < 256; y++) {
+    const v = y / 255;
 
-    for (let x = 0; x < 1024; x++) {
-      const u = x / 1024;
+    for (let x = 0; x < 512; x++) {
+      const u = x / 512;
 
       const pole = smooth(
         Math.min(
@@ -495,7 +539,7 @@ function drawBackground(ctx, width, height) {
           Math.pow(Math.abs(v - 0.5) * 2, 2)
         );
 
-      const j = (y * 1024 + x) * 4;
+      const j = (y * 512 + x) * 4;
 
       for (let k = 0; k < 3; k++) {
         image.data[j + k] =
@@ -732,17 +776,26 @@ window.addEventListener(
   { passive: true }
 );
 
+
 function sensorMode() {
+  // Sensoren nur bei aktivierter Checkbox verwenden
+  if (!sensorOptIn) {
+    return "KUGELSTEUERUNG";
+  }
+
+  // Kompasssensor hat Priorität
   if (fresh(headingLastAt)) {
     return "KOMPASS AKTIV";
   }
 
+  // Alternativ Bewegungssensor
   if (fresh(motionLastAt)) {
     return "BEWEGUNG AKTIV";
   }
 
   return "KUGELSTEUERUNG";
 }
+
 
 /* =========================================
    SENSORAKTIVIERUNG AUF DER KUGEL
@@ -849,11 +902,19 @@ function requestSensorAccess() {
 
   sensorOptIn = !sensorOptIn;
 
-  if (!sensorOptIn) {
-    sensorStatusText = "AUTOMATISCHE ERKENNUNG";
-    refreshEchoesTexture();
-    return;
-  }
+
+if (!sensorOptIn) {
+  // Aktuelle Nadelposition übernehmen
+  fallbackAngle = needleAngle;
+  targetNeedleAngle = needleAngle;
+
+  // Zur Kugelsteuerung zurückkehren
+  sensorStatusText = "KUGELSTEUERUNG";
+
+  refreshEchoesTexture();
+  return;
+}
+
 
   if (!window.isSecureContext) {
     sensorOptIn = false;
@@ -1479,6 +1540,49 @@ function drawVisualViewer(ctx, cx, iy, iw, ih) {
   ctx.lineWidth = 2;
   ctx.stroke();
 
+/* =========================================
+   PRESS – MARKIERUNG DES SCHALTERS
+========================================= */
+
+// Dezenter salbeigrüner Leuchtring
+ctx.save();
+
+ctx.shadowColor = "rgba(190, 235, 165, 0.65)";
+ctx.shadowBlur = 16;
+
+ctx.strokeStyle = "#c5e8b6";
+ctx.lineWidth = 2.5;
+
+ctx.beginPath();
+ctx.arc(
+  leverX,
+  knobY,
+  24,
+  0,
+  Math.PI * 2
+);
+ctx.stroke();
+
+ctx.restore();
+
+// PRESS-Beschriftung direkt auf dem Knopf
+ctx.save();
+
+ctx.font = "700 15px 'DM Mono', monospace";
+ctx.textAlign = "center";
+ctx.textBaseline = "middle";
+
+ctx.fillStyle = "#101b12";
+
+ctx.fillText(
+  "PRESS",
+  leverX,
+  knobY + 1,
+  38
+);
+
+ctx.restore();
+
   /* Pfeil */
 
   ctx.fillStyle = "rgba(226,237,218,.85)";
@@ -1554,6 +1658,7 @@ function refreshVisualsTexture() {
   );
 
   globeTexture.needsUpdate = true;
+sceneNeedsRender = true;
 }
 
 /* =========================================
@@ -1599,7 +1704,7 @@ function drawOpenLabel(ctx, cx, ix, iy, iw, ih) {
   ctx.fillStyle = "#edf4e9";
 
   ctx.font =
-    "500 25px 'DM Mono', monospace";
+    "500 21px 'DM Mono', monospace";
 
   ctx.fillText(
     "ÖFFNEN  ↗",
@@ -1646,13 +1751,15 @@ function drawPanel(
     h * 0.020
   );
 
-  /* Kategorie */
+
+  /* =========================================
+     KATEGORIE – DM MONO
+  ========================================= */
 
   ctx.textBaseline = "alphabetic";
   ctx.fillStyle = "rgba(232,239,226,.65)";
 
-  ctx.font =
-    "500 21px 'DM Mono', monospace";
+  ctx.font = "500 19px 'DM Mono', monospace";
 
   ctx.fillText(
     section.eyebrow,
@@ -1661,15 +1768,16 @@ function drawPanel(
     contentW
   );
 
-  /* Titel */
+  /* =========================================
+     TITEL – MANROPE
+  ========================================= */
 
   ctx.fillStyle = "#f0f2eb";
 
-  ctx.font = section.name === "MUSIC"
-    ? "300 45px Manrope, Arial"
-    : "300 58px Manrope, Arial";
+  // Einheitliche Schriftgrösse für alle Bereiche
+  ctx.font = "300 58px Manrope, Arial";
 
-  const titleY = h * 0.31;
+  const titleY = h * 0.335;
 
   section.title.forEach((line, i) => {
     ctx.fillText(
@@ -1680,24 +1788,32 @@ function drawPanel(
     );
   });
 
-  /* Beschreibung */
+  /* =========================================
+     BESCHREIBUNG – MANROPE
+  ========================================= */
 
+  // Abstand zwischen Überschrift und Beschreibung
   const bodyStart =
     titleY +
     (section.title.length - 1) * 76 +
-    100;
+    82;
 
   ctx.fillStyle = "rgba(235,239,230,.86)";
-  ctx.font = "300 22px Manrope, Arial";
 
+  // Etwas kräftigere und besser lesbare Schrift
+  ctx.font = "400 22px Manrope, Arial";
+
+  // Einheitlicher Zeilenabstand
   section.body.forEach((line, i) => {
     ctx.fillText(
       line,
       cx,
-      bodyStart + i * 43,
+      bodyStart + i * 40,
       contentW
     );
   });
+
+
 
   /* Zusatzinformationen */
 
@@ -1712,7 +1828,7 @@ function drawPanel(
         line,
         cx,
         bodyStart +
-          section.body.length * 43 +
+          section.body.length * 40 +
           35 +
           i * 39,
         contentW
@@ -1929,7 +2045,18 @@ function drawWrappedPanel(ctx, index, image) {
 ========================================= */
 
 async function createGlobeTexture() {
-  const images = await Promise.all(
+
+  // Schriftarten parallel zu den Bildern vorbereiten
+  const canvasFontsReady = document.fonts?.load
+    ? Promise.allSettled([
+        document.fonts.load("300 58px Manrope"),
+        document.fonts.load("400 22px Manrope"),
+        document.fonts.load('500 19px "DM Mono"'),
+        document.fonts.load('400 19px "DM Mono"')
+      ])
+    : Promise.resolve();
+
+   const images = await Promise.all(
     [
       ASSETS.home,
       ASSETS.music,
@@ -1945,6 +2072,10 @@ async function createGlobeTexture() {
 
   visualIndex = 0;
   echoesImage = images[3];
+   
+  // Vor dem Zeichnen sicherstellen, dass die
+  // angeforderten Schriftarten geladen wurden.
+  await canvasFontsReady;
 
   globeCanvas = document.createElement("canvas");
 
@@ -1998,6 +2129,7 @@ createGlobeTexture()
   .then(texture => {
     globe.material.map = texture;
     globe.material.needsUpdate = true;
+sceneNeedsRender = true;
 
     console.info(
       "CAMOU: Kugeltextur geladen."
@@ -2055,6 +2187,7 @@ function updateHomeVideoFrame() {
   }
 
   globeTexture.needsUpdate = true;
+sceneNeedsRender = true;
 }
 
 /* =========================================
@@ -2101,6 +2234,7 @@ function refreshEchoesTexture() {
   );
 
   globeTexture.needsUpdate = true;
+sceneNeedsRender = true;
 }
 
 /* =========================================
@@ -2115,20 +2249,18 @@ function currentIndex() {
   return ((n % 5) + 5) % 5;
 }
 
+let lastIndicatorIndex = -1;
 function updateIndicator() {
   const index = currentIndex();
+  if (index === lastIndicatorIndex) return;
+  lastIndicatorIndex = index;
 
-  $("current-section").textContent =
-    sections[index].name;
-
+  $("current-section").textContent = sections[index].name;
   $("section-number").textContent =
     `${String(index + 1).padStart(2, "0")} / 05`;
 
   navButtons.forEach((button, i) => {
-    button.classList.toggle(
-      "active",
-      i === index
-    );
+    button.classList.toggle("active", i === index);
   });
 }
 
@@ -2590,22 +2722,31 @@ function handleGlobeClick(event) {
     homeVideoStarted &&
     !homeVideo.paused
   ) {
-    homeVideo.pause();
-    homeVideoPlaying = false;
-    updateHomeVideoFrame();
+
+homeVideo.pause();
+homeVideoPlaying = false;
+
+stopHomeVideoFrameUpdates();
+
+updateHomeVideoFrame();
+
     return;
   }
 
   homeVideoStarting = true;
 
-  homeVideo.play()
-    .then(() => {
-      homeVideoStarted = true;
-      homeVideoPlaying = true;
-      homeVideoStarting = false;
 
-      updateHomeVideoFrame();
-    })
+homeVideo.play()
+  .then(() => {
+    homeVideoStarted = true;
+    homeVideoPlaying = true;
+    homeVideoStarting = false;
+
+    updateHomeVideoFrame();
+
+    startHomeVideoFrameUpdates();
+  })
+
     .catch(error => {
       homeVideoStarting = false;
 
@@ -2632,6 +2773,7 @@ function setZoom(value) {
   );
 
   camera.position.z = currentZoom;
+sceneNeedsRender = true;
 }
 
 $("zoom-in")?.addEventListener(
@@ -3072,11 +3214,21 @@ function animate(now = 0) {
     0
   );
 
-  /* Home Video */
 
-  if (homeVideoPlaying) {
-    updateHomeVideoFrame();
-  }
+/* =========================================
+   HOME VIDEO – FRAME-SYNCHRONISATION
+========================================= */
+
+if (
+  homeVideoPlaying &&
+  typeof homeVideo.requestVideoFrameCallback !== "function" &&
+  now - lastVideoFallbackPaint >= 33
+) {
+  lastVideoFallbackPaint = now;
+
+  updateHomeVideoFrame();
+}
+
 
   /* Kompass Fallback */
 
@@ -3085,6 +3237,14 @@ function animate(now = 0) {
 
   const deltaY =
     rotationY - lastGlobeY;
+   
+if (
+  Math.abs(deltaX) > 1e-9 ||
+  Math.abs(deltaY) > 1e-9
+) {
+  sceneNeedsRender = true;
+}
+
 
   lastGlobeX = rotationX;
   lastGlobeY = rotationY;
@@ -3145,10 +3305,16 @@ function animate(now = 0) {
     }
   }
 
+
+if (sceneNeedsRender) {
+  sceneNeedsRender = false;
+
   renderer.render(
     scene,
     camera
   );
+}
+
 
   updateIndicator();
 }
@@ -3178,6 +3344,7 @@ function resize() {
   renderer.setPixelRatio(
     Math.min(window.devicePixelRatio, 2)
   );
+   sceneNeedsRender = true;
 }
 
 window.addEventListener(
