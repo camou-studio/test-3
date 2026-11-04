@@ -3026,3 +3026,704 @@ setZoom(defaultZoom);
 updateIndicator();
 
 /* ENDE CAMOU – EXPLORE GLOBE */
+
+/* ============================================================
+   CAMOU – ENTDECKER-KUGEL V2
+   VERZERRUNGSARME INHALTE
+
+   Diesen Block EINMAL am Ende der aktuellen
+   script.js einfuegen.
+============================================================ */
+
+const CAMOU_V2_W = 960;
+const CAMOU_V2_H = 760;
+const CAMOU_V2_SCALE = mobile ? 0.00222 : 0.00296;
+
+const CAMOU_V2_CANVASES = [];
+const CAMOU_V2_TEXTURES = [];
+const CAMOU_V2_MESHES = [];
+const CAMOU_V2_IMAGES = [];
+
+let CAMOU_V2_SHOW_LABELS = false;
+
+/* =========================================
+   NEUE VERTEILUNG DER BEREICHE
+========================================= */
+
+const CAMOU_V2_PLACES = [
+  {
+    lon: -155,
+    lat: 32,
+    tilt: -4,
+    photoTilt: 4,
+    imageX: 15,
+    textX: -20
+  },
+  {
+    lon: -105,
+    lat: -33,
+    tilt: 3,
+    photoTilt: -4,
+    imageX: -205,
+    textX: 214
+  },
+  {
+    lon: 5,
+    lat: 34,
+    tilt: -4,
+    photoTilt: 4,
+    imageX: 10,
+    textX: -20
+  },
+  {
+    lon: -3,
+    lat: -35,
+    tilt: 3,
+    photoTilt: 0,
+    imageX: 0,
+    textX: 12
+  },
+  {
+    lon: 125,
+    lat: 1,
+    tilt: -4,
+    photoTilt: 5,
+    imageX: -205,
+    textX: 214
+  }
+];
+
+for (let i = 0; i < PLACES.length; i++) {
+  const p = PLACES[i];
+
+  Object.assign(p, CAMOU_V2_PLACES[i]);
+
+  const lon = p.lon * RAD;
+  const lat = p.lat * RAD;
+
+  p.tiltR = p.tilt * RAD;
+  p.photoR = p.photoTilt * RAD;
+
+  p.nx = Math.cos(lat) * Math.sin(lon);
+  p.ny = Math.sin(lat);
+  p.nz = Math.cos(lat) * Math.cos(lon);
+}
+
+/* =========================================
+   GEKRUEMMTE 3D-INHALTSFLAECHEN
+========================================= */
+
+function camouV2Geometry(p) {
+  const positions = [];
+  const uvs = [];
+  const indices = [];
+
+  const columns = 26;
+  const rows = 22;
+
+  const lon = p.lon * RAD;
+  const lat = p.lat * RAD;
+
+  const normal = new THREE.Vector3(
+    Math.cos(lat) * Math.sin(lon),
+    Math.sin(lat),
+    Math.cos(lat) * Math.cos(lon)
+  );
+
+  const east = new THREE.Vector3(
+    Math.cos(lon),
+    0,
+    -Math.sin(lon)
+  );
+
+  const north = new THREE.Vector3(
+    -Math.sin(lat) * Math.sin(lon),
+    Math.cos(lat),
+    -Math.sin(lat) * Math.cos(lon)
+  );
+
+  const c = Math.cos(p.tiltR);
+  const s = Math.sin(p.tiltR);
+
+  for (let row = 0; row <= rows; row++) {
+    const v = row / rows;
+
+    for (let col = 0; col <= columns; col++) {
+      const u = col / columns;
+
+      const lx =
+        (u - 0.5) * CAMOU_V2_W * CAMOU_V2_SCALE;
+
+      const ly =
+        (v - 0.5) * CAMOU_V2_H * CAMOU_V2_SCALE;
+
+      const x = lx * c - ly * s;
+      const y = lx * s + ly * c;
+
+      const z = Math.sqrt(
+        Math.max(
+          0.01,
+          CONFIG.radius ** 2 - x * x - y * y
+        )
+      );
+
+      const point = normal
+        .clone()
+        .multiplyScalar(z + 0.018)
+        .addScaledVector(east, x)
+        .addScaledVector(north, y);
+
+      positions.push(
+        point.x,
+        point.y,
+        point.z
+      );
+
+      uvs.push(u, v);
+    }
+  }
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < columns; col++) {
+      const a = row * (columns + 1) + col;
+      const b = a + 1;
+      const c = a + columns + 1;
+      const d = c + 1;
+
+      indices.push(
+        a, c, b,
+        b, c, d
+      );
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(
+      positions,
+      3
+    )
+  );
+
+  geometry.setAttribute(
+    "uv",
+    new THREE.Float32BufferAttribute(
+      uvs,
+      2
+    )
+  );
+
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+
+  return geometry;
+}
+
+/* =========================================
+   EIGENE TEXTUREN PRO BEREICH
+========================================= */
+
+drawWrappedPanel = function(ctx, index, image) {
+  CAMOU_V2_IMAGES[index] = image;
+
+  if (!CAMOU_V2_CANVASES[index]) {
+    const canvas = document.createElement("canvas");
+
+    canvas.width = CAMOU_V2_W;
+    canvas.height = CAMOU_V2_H;
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      depthTest: true,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    });
+
+    const mesh = new THREE.Mesh(
+      camouV2Geometry(PLACES[index]),
+      material
+    );
+
+    mesh.renderOrder = 2;
+    mesh.userData.sectionIndex = index;
+
+    globeGroup.add(mesh);
+
+    CAMOU_V2_CANVASES[index] = canvas;
+    CAMOU_V2_TEXTURES[index] = texture;
+    CAMOU_V2_MESHES[index] = mesh;
+  }
+
+  refreshIsland(index);
+};
+
+/* =========================================
+   BILDER / VIDEOS ZEICHNEN
+========================================= */
+
+paintPhoto = function(ctx, index, image) {
+  const p = PLACES[index];
+
+  ctx.save();
+
+  ctx.translate(p.imageX, 112);
+  ctx.rotate(p.photoR);
+
+  ctx.fillStyle = "rgba(7,12,9,.92)";
+
+  ctx.fillRect(
+    -PHOTO_W / 2 - 7,
+    -PHOTO_H / 2 - 7,
+    PHOTO_W + 14,
+    PHOTO_H + 14
+  );
+
+  ctx.save();
+
+  ctx.beginPath();
+
+  ctx.rect(
+    -PHOTO_W / 2,
+    -PHOTO_H / 2,
+    PHOTO_W,
+    PHOTO_H
+  );
+
+  ctx.clip();
+
+  if (
+    index === 0 &&
+    homeVideoStarted &&
+    homeVideo.readyState >= 2
+  ) {
+    cover(
+      ctx,
+      homeVideo,
+      -PHOTO_W / 2,
+      -PHOTO_H / 2,
+      PHOTO_W,
+      PHOTO_H
+    );
+
+    if (homeVideo.paused) {
+      playButton(ctx, 0, 0);
+    }
+  } else {
+    cover(
+      ctx,
+      image,
+      -PHOTO_W / 2,
+      -PHOTO_H / 2,
+      PHOTO_W,
+      PHOTO_H
+    );
+
+    if (index === 0) {
+      playButton(ctx, 0, 0);
+    }
+  }
+
+  ctx.restore();
+
+  if (index === 1 || index === 4) {
+    drawOpenLabel(
+      ctx,
+      0,
+      -PHOTO_W / 2,
+      -PHOTO_H / 2,
+      PHOTO_W,
+      PHOTO_H
+    );
+  }
+
+  ctx.strokeStyle = "rgba(225,237,220,.52)";
+  ctx.lineWidth = 2;
+
+  ctx.strokeRect(
+    -PHOTO_W / 2,
+    -PHOTO_H / 2,
+    PHOTO_W,
+    PHOTO_H
+  );
+
+  ctx.restore();
+};
+
+/* =========================================
+   TEXTE UND INHALTE
+========================================= */
+
+drawPanel = function(ctx, index, image) {
+  const p = PLACES[index];
+  const section = sections[index];
+
+  const side = index === 1 || index === 4;
+
+  ctx.save();
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+
+  /* Kleine Bereichsbezeichnungen */
+
+  if (CAMOU_V2_SHOW_LABELS) {
+    ctx.strokeStyle = "rgba(207,226,200,.30)";
+    ctx.lineWidth = 1.5;
+
+    ctx.beginPath();
+
+    ctx.moveTo(-105, -345);
+    ctx.lineTo(105, -345);
+
+    ctx.stroke();
+
+    ctx.font =
+      "500 19px 'DM Mono', monospace";
+
+    ctx.fillStyle =
+      "rgba(231,242,225,.70)";
+
+    ctx.fillText(
+      section.eyebrow,
+      0,
+      -315,
+      720
+    );
+  }
+
+  /* Haupttitel */
+
+  ctx.font = "300 58px Manrope, Arial";
+  ctx.fillStyle = "#f0f2eb";
+
+  ctx.fillText(
+    section.title[0],
+    -12,
+    -217,
+    820
+  );
+
+  /* Beschreibung */
+
+  ctx.font = "400 22px Manrope, Arial";
+
+  ctx.fillStyle =
+    "rgba(236,242,232,.88)";
+
+  if (side) {
+    // MUSIC und CONTACT:
+    // Text rechts neben dem Bild.
+
+    section.body.forEach((line, i) => {
+      ctx.fillText(
+        line,
+        p.textX,
+        6 + i * 38,
+        382
+      );
+    });
+
+  } else {
+    // HOME, VISUALS und ECHOES:
+    // Text oberhalb des Motivs.
+
+    section.body.forEach((line, i) => {
+      ctx.fillText(
+        line,
+        p.textX,
+        -140 + i * 38,
+        750
+      );
+    });
+  }
+
+  /* Visuals */
+
+  if (index === 2) {
+    ctx.save();
+
+    ctx.translate(p.imageX, 112);
+    ctx.rotate(p.photoR);
+
+    ctx.scale(
+      CONFIG.visualScale,
+      CONFIG.visualScale
+    );
+
+    drawVisualViewer(
+      ctx,
+      0,
+      -PHOTO_H / 2,
+      PHOTO_W,
+      PHOTO_H
+    );
+
+    ctx.restore();
+
+  } else if (index === 3) {
+    /* Echoes */
+
+    drawCompass(
+      ctx,
+      p.imageX,
+      112
+    );
+
+    ctx.save();
+
+    ctx.translate(0, -3);
+
+    drawSensorControl(
+      ctx,
+      p.imageX
+    );
+
+    ctx.restore();
+
+  } else {
+    /* Home, Music, Contact */
+
+    paintPhoto(ctx, index, image);
+  }
+
+  ctx.restore();
+};
+
+/* =========================================
+   EINZELNEN BEREICH AKTUALISIEREN
+========================================= */
+
+refreshIsland = function(index) {
+  const canvas = CAMOU_V2_CANVASES[index];
+  const texture = CAMOU_V2_TEXTURES[index];
+
+  if (!canvas || !texture) return;
+
+  const ctx = canvas.getContext("2d");
+
+  ctx.clearRect(
+    0,
+    0,
+    CAMOU_V2_W,
+    CAMOU_V2_H
+  );
+
+  ctx.save();
+
+  ctx.translate(
+    CAMOU_V2_W / 2,
+    CAMOU_V2_H / 2
+  );
+
+  drawPanel(
+    ctx,
+    index,
+    index === 2
+      ? visualImages[visualIndex]
+      : CAMOU_V2_IMAGES[index]
+  );
+
+  ctx.restore();
+
+  texture.needsUpdate = true;
+  sceneNeedsRender = true;
+};
+
+/* =========================================
+   VIDEO-PERFORMANCE
+========================================= */
+
+updateHomeVideoFrame = function() {
+  if (
+    homeVideoStarted &&
+    homeVideo.readyState >= 2
+  ) {
+    refreshIsland(0);
+  }
+};
+
+/* =========================================
+   KLICKERKENNUNG AUF NEUEN FLÄCHEN
+========================================= */
+
+texturePoint = function(event) {
+  const rect =
+    renderer.domElement.getBoundingClientRect();
+
+  pointer.set(
+    (event.clientX - rect.left) /
+      rect.width * 2 - 1,
+
+    -(
+      (event.clientY - rect.top) /
+        rect.height * 2 - 1
+    )
+  );
+
+  globeGroup.updateMatrixWorld(true);
+  camera.updateMatrixWorld(true);
+
+  raycaster.setFromCamera(
+    pointer,
+    camera
+  );
+
+  const sphereHit =
+    raycaster.intersectObject(globe)[0];
+
+  const hit = raycaster
+    .intersectObjects(
+      CAMOU_V2_MESHES.filter(Boolean),
+      false
+    )
+    .find(result =>
+      !sphereHit ||
+      result.distance <= sphereHit.distance + 0.05
+    );
+
+  if (!hit?.uv) return null;
+
+  return {
+    index: hit.object.userData.sectionIndex,
+
+    x:
+      (hit.uv.x - 0.5) * CAMOU_V2_W,
+
+    y:
+      (0.5 - hit.uv.y) * CAMOU_V2_H
+  };
+};
+
+islandPoint = function(point, index) {
+  return point && point.index === index
+    ? {
+        x: point.x,
+        y: point.y
+      }
+    : null;
+};
+
+photoPoint = function(point, index) {
+  const local = islandPoint(point, index);
+
+  if (!local) return null;
+
+  const p = PLACES[index];
+
+  const dx = local.x - p.imageX;
+  const dy = local.y - 112;
+
+  const c = Math.cos(p.photoR);
+  const s = Math.sin(p.photoR);
+
+  return {
+    x: c * dx + s * dy,
+    y: -s * dx + c * dy
+  };
+};
+
+/* =========================================
+   BEREICHSNUMMERN EIN-/AUSBLENDEN
+========================================= */
+
+function camouV2Tags(visible) {
+  if (CAMOU_V2_SHOW_LABELS === visible) {
+    return;
+  }
+
+  CAMOU_V2_SHOW_LABELS = visible;
+
+  CAMOU_V2_CANVASES.forEach((_, i) => {
+    refreshIsland(i);
+  });
+}
+
+/* Navigation: kleine Nummern ausblenden */
+
+navButtons.forEach(button => {
+  button.addEventListener("click", () => {
+    camouV2Tags(false);
+  });
+});
+
+$("logo")?.addEventListener(
+  "click",
+  () => camouV2Tags(false)
+);
+
+/* Beim Erkunden wieder einblenden */
+
+stage.addEventListener(
+  "pointerdown",
+  event => {
+    if (event.target === renderer.domElement) {
+      camouV2Tags(true);
+    }
+  }
+);
+
+window.addEventListener(
+  "keydown",
+  event => {
+    if (
+      event.key === "ArrowUp" ||
+      event.key === "ArrowDown"
+    ) {
+      camouV2Tags(true);
+    }
+  }
+);
+
+/* =========================================
+   STANDARD-ZOOM LEICHT VERGRÖSSERN
+========================================= */
+
+const camouV2OriginalZoom = setZoom;
+
+setZoom = function(value) {
+  const corrected =
+    Math.abs(value - defaultZoom) < 1e-8
+      ? defaultZoom - (mobile ? 0.08 : 0.25)
+      : value;
+
+  camouV2OriginalZoom(corrected);
+
+  if (!isDragging) {
+    camouV2Tags(
+      currentZoom > defaultZoom + 0.4
+    );
+  }
+};
+
+/* =========================================
+   HOME-STARTPOSITION KORRIGIEREN
+========================================= */
+
+rotationX = PLACES[0].lat * RAD;
+rotationY = -PLACES[0].lon * RAD;
+
+lastGlobeX = rotationX;
+lastGlobeY = rotationY;
+
+velocityX = 0;
+velocityY = 0;
+
+globeGroup.rotation.set(
+  rotationX,
+  rotationY,
+  0
+);
+
+sceneNeedsRender = true;
+
+setZoom(defaultZoom);
+updateIndicator();
+
+/* ENDE CAMOU – ENTDECKER-KUGEL V2 */
+
