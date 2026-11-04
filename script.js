@@ -236,41 +236,50 @@ const COMPASS_Y = 115;
 */
 
 const PLACES = [
+  // 01 HOME – obere Halbkugel
   {
-    lon: 0,
-    lat: 4,
+    lon: -150,
+    lat: 45,
     tilt: -7,
     photoTilt: 6,
     imageX: 38,
     textX: -32
   },
+
+  // 02 MUSIC – untere Halbkugel
   {
-    lon: 86,
-    lat: -17,
+    lon: -120,
+    lat: -45,
     tilt: 11,
     photoTilt: -6,
     imageX: -35,
     textX: 36
   },
+
+  // 03 VISUALS – obere Halbkugel
   {
-    lon: -145,
-    lat: 23,
+    lon: 0,
+    lat: 45,
     tilt: -12,
     photoTilt: 7,
     imageX: 32,
     textX: -28
   },
+
+  // 04 ECHOES – untere Halbkugel
   {
-    lon: 166,
-    lat: -24,
+    lon: -15,
+    lat: -45,
     tilt: 10,
     photoTilt: 0,
     imageX: -14,
     textX: 30
   },
+
+  // 05 CONTACT – seitlicher Mittelbereich
   {
-    lon: -70,
-    lat: 17,
+    lon: 125,
+    lat: -5,
     tilt: -11,
     photoTilt: 8,
     imageX: -30,
@@ -300,8 +309,8 @@ const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const pointers = new Map();
 
-let rotationX = 0;
-let rotationY = 0;
+let rotationX = PLACES[0].lat * RAD;
+let rotationY = -PLACES[0].lon * RAD;
 
 let velocityX = 0;
 let velocityY = 0;
@@ -582,8 +591,9 @@ let needleAngle = 0;
 let targetNeedleAngle = 0;
 let fallbackAngle = 0;
 
-let lastGlobeX = 0;
-let lastGlobeY = 0;
+
+let lastGlobeX = rotationX;
+let lastGlobeY = rotationY;
 let lastCompassDraw = 0;
 
 let motionAngle = 0;
