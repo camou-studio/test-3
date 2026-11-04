@@ -327,7 +327,7 @@ let menuAnimating = false;
 ========================================= */
 
 // Grosse Standardansicht
-const CAMOU_FOCUS_ZOOM = mobile ? 6.8 : 6.5;
+const CAMOU_FOCUS_ZOOM = mobile ? 6.0 : 6.2;
 
 // Kugel-Gesamtansicht
 const CAMOU_OVERVIEW_ZOOM = mobile ? 11.4 : 11.6;
@@ -3193,7 +3193,7 @@ for (let i = 0; i < PLACES.length; i++) {
   Object.assign(p, CAMOU_V2_PLACES[i]);
 
 // Bilder auf Smartphones mittiger platzieren
-if (mobile && i === 1) p.imageX = -50;
+if (mobile && i === 1) p.imageX = -95;
 if (mobile && i === 4) p.imageX = 50;
 
   const lon = p.lon * RAD;
@@ -3370,7 +3370,10 @@ paintPhoto = function(ctx, index, image) {
 
   ctx.save();
 
-ctx.translate(p.imageX, 112);
+ctx.translate(
+  p.imageX,
+  mobile && index === 1 ? 150 : 112
+);
 
 if (mobile && (index === 1 || index === 4)) {
   ctx.scale(
@@ -3759,8 +3762,12 @@ photoPoint = function(point, index) {
 
   const p = PLACES[index];
 
-  const dx = local.x - p.imageX;
-  const dy = local.y - 112;
+const dx = local.x - p.imageX;
+
+const imageY =
+  mobile && index === 1 ? 150 : 112;
+
+const dy = local.y - imageY;
 
   const c = Math.cos(p.photoR);
   const s = Math.sin(p.photoR);
