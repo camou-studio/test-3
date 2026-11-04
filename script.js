@@ -3527,14 +3527,16 @@ ctx.fillText(
     // HOME, VISUALS und ECHOES:
     // Text oberhalb des Motivs.
 
-section.body.forEach((line, i) => {
-  ctx.fillText(
-    line,
-    p.textX,
-    -140 + i * 38 - (index === 3 ? 45 : 0),
-    750
-  );
-});
+    section.body.forEach((line, i) => {
+      ctx.fillText(
+        line,
+        p.textX,
+        -140 + i * 38 - (index === 3 ? 45 : 0),
+        750
+      );
+    });
+
+  } // Schliessende Klammer für den else-Block
 
   /* Visuals */
 
