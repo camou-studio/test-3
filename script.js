@@ -322,6 +322,29 @@ let lastTime = 0;
 let isDragging = false;
 let menuAnimating = false;
 
+/* =========================================
+   CAMOU – NAVIGATIONSFLUG
+========================================= */
+
+// Grosse Standardansicht
+const CAMOU_FOCUS_ZOOM = mobile ? 7.0 : 6.5;
+
+// Kugel-Gesamtansicht
+const CAMOU_OVERVIEW_ZOOM = mobile ? 11.4 : 11.6;
+
+// Animationsdauer in Millisekunden
+const CAMOU_ZOOM_OUT_MS = 550;
+const CAMOU_ROTATE_MS = 1100;
+const CAMOU_ZOOM_IN_MS = 800;
+
+// Animationszustand
+let camouNavPhase = "idle";
+let camouNavStartedAt = 0;
+
+let camouNavZoomFrom = currentZoom;
+let camouNavRotFromX = rotationX;
+let camouNavRotFromY = rotationY;
+
 let targetRotationX = 0;
 let targetRotationY = 0;
 let pointerStart = null;
@@ -1993,6 +2016,7 @@ function updateIndicator() {
   });
 }
 
+
 function goToSection(index) {
   const i = ((index % 5) + 5) % 5;
   const p = PLACES[i];
@@ -2006,10 +2030,9 @@ function goToSection(index) {
 
   stage.classList.remove("dragging");
 
-  // Breitengrad.
+  // Zielposition berechnen
   targetRotationX = p.lat * RAD;
 
-  // Kürzesten Weg zum Längengrad suchen.
   let yaw = -p.lon * RAD;
 
   while (yaw - rotationY > Math.PI) {
@@ -2022,11 +2045,12 @@ function goToSection(index) {
 
   targetRotationY = yaw;
 
+  // Navigationsflug starten
+  camouNavPhase = "out";
+  camouNavStartedAt = performance.now();
+  camouNavZoomFrom = currentZoom;
+
   menuAnimating = true;
-
-  // Den gewählten Bereich wieder gut lesbar anzeigen.
-  setZoom(defaultZoom);
-
   sceneNeedsRender = true;
 }
 
@@ -2867,27 +2891,96 @@ let lastShownSensorMode = "";
 function animate(now = 0) {
   requestAnimationFrame(animate);
 
-  // Automatischer Flug zum gewählten Bereich.
+
+  /* NAVIGATION – DREI PHASEN */
+
   if (!isDragging && menuAnimating) {
-    const dy =
-      targetRotationY - rotationY;
 
-    const dx =
-      targetRotationX - rotationX;
+    const elapsed = Math.max(
+      0,
+      now - camouNavStartedAt
+    );
 
-    rotationY += dy * 0.075;
-    rotationX += dx * 0.075;
+    // Phase 1: Herauszoomen
+    if (camouNavPhase === "out") {
 
-    if (
-      Math.abs(dy) < 0.0005 &&
-      Math.abs(dx) < 0.0005
-    ) {
-      rotationY = targetRotationY;
-      rotationX = targetRotationX;
-      menuAnimating = false;
+      const t = smooth(
+        elapsed / CAMOU_ZOOM_OUT_MS
+      );
+
+      setZoom(
+        lerp(
+          camouNavZoomFrom,
+          CAMOU_OVERVIEW_ZOOM,
+          t
+        )
+      );
+
+      if (elapsed >= CAMOU_ZOOM_OUT_MS) {
+        setZoom(CAMOU_OVERVIEW_ZOOM);
+
+        camouNavRotFromX = rotationX;
+        camouNavRotFromY = rotationY;
+
+        camouNavPhase = "turn";
+        camouNavStartedAt = now;
+      }
+
+    // Phase 2: Kugel drehen
+    } else if (camouNavPhase === "turn") {
+
+      const t = smooth(
+        elapsed / CAMOU_ROTATE_MS
+      );
+
+      rotationX = lerp(
+        camouNavRotFromX,
+        targetRotationX,
+        t
+      );
+
+      rotationY = lerp(
+        camouNavRotFromY,
+        targetRotationY,
+        t
+      );
+
+      sceneNeedsRender = true;
+
+      if (elapsed >= CAMOU_ROTATE_MS) {
+        rotationX = targetRotationX;
+        rotationY = targetRotationY;
+
+        camouNavPhase = "in";
+        camouNavStartedAt = now;
+        camouNavZoomFrom = currentZoom;
+      }
+
+    // Phase 3: Hineinzoomen
+    } else if (camouNavPhase === "in") {
+
+      const t = smooth(
+        elapsed / CAMOU_ZOOM_IN_MS
+      );
+
+      setZoom(
+        lerp(
+          camouNavZoomFrom,
+          CAMOU_FOCUS_ZOOM,
+          t
+        )
+      );
+
+      if (elapsed >= CAMOU_ZOOM_IN_MS) {
+        setZoom(CAMOU_FOCUS_ZOOM);
+
+        menuAnimating = false;
+        camouNavPhase = "idle";
+      }
     }
+
   } else if (!isDragging) {
-    // Trägheit bei freier Drehung.
+
     rotationY += velocityY;
     rotationX += velocityX;
 
@@ -3684,12 +3777,14 @@ window.addEventListener(
    STANDARD-ZOOM LEICHT VERGRÖSSERN
 ========================================= */
 
+
 const camouV2OriginalZoom = setZoom;
 
 setZoom = function(value) {
   const corrected =
+    !menuAnimating &&
     Math.abs(value - defaultZoom) < 1e-8
-      ? defaultZoom - (mobile ? 0.08 : 0.25)
+      ? CAMOU_FOCUS_ZOOM
       : value;
 
   camouV2OriginalZoom(corrected);
