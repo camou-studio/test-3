@@ -1,9 +1,10 @@
+
 import * as THREE from "three";
 
-/* =========================================
-   CAMOU — COMPLETE GLOBE SCRIPT
-   HYBRID COMPASS / VISUALS / MODALS
-========================================= */
+/* CAMOU – EXPLORE GLOBE
+   Five freely positioned environments
+   Navigation / Video / Visuals / Compass / Modals
+*/
 
 const CONFIG = {
   radius: 3.2,
@@ -13,8 +14,6 @@ const CONFIG = {
   maxZoom: 17,
   dragSpeed: 0.0052,
   friction: 0.94,
-  gradientStrength: 0.75,
-  gradientSoftness: 0.85,
   visualScale: 0.78
 };
 
@@ -36,29 +35,26 @@ const ASSETS = {
 const sections = [
   {
     name: "HOME",
-    poleLetter: "c",
-    eyebrow: "01 — NEW Project",
+    eyebrow: "01 — NEW PROJECT",
     title: ["c a m o u"],
     body: ["Gleiche Fragen.", "Neue Perspektiven."],
     image: ASSETS.home
   },
   {
     name: "MUSIC",
-    poleLetter: "a",
-    eyebrow: "02 — Releases",
+    eyebrow: "02 — RELEASES",
     title: ["f r a g m e n t e"],
     body: [
       "vom Wind getragen,",
-       "zwischen Licht und Schatten.",
-      "zwischen dem, was man sieht ",
+      "zwischen Licht und Schatten.",
+      "zwischen dem, was man sieht",
       "und dem, was bleibt."
     ],
     image: ASSETS.music
   },
   {
     name: "VISUALS",
-    poleLetter: "m",
-    eyebrow: "03 — VISUAL WORK",
+    eyebrow: "03 — VISUAL WORKS",
     title: ["Visuals"],
     body: [
       "Bilder, die bleiben.",
@@ -68,8 +64,7 @@ const sections = [
   },
   {
     name: "ECHOES",
-    poleLetter: "o",
-    eyebrow: "04 — Elsewhere",
+    eyebrow: "04 — HALL",
     title: ["Echoes"],
     body: [
       "Songs und Spuren, die an",
@@ -80,15 +75,13 @@ const sections = [
   },
   {
     name: "CONTACT",
-    poleLetter: "u",
     eyebrow: "05 — GET IN TOUCH",
     title: ["Contact"],
     body: [
       "Für Anfragen und Zusammenarbeit.",
       "Oder einfach so."
     ],
-    image: ASSETS.contact,
-    extra: [""]
+    image: ASSETS.contact
   }
 ];
 
@@ -98,8 +91,8 @@ const sections = [
 
 const $ = id => document.getElementById(id);
 
-const clamp = (value, min, max) =>
-  Math.max(min, Math.min(max, value));
+const clamp = (v, min, max) =>
+  Math.max(min, Math.min(max, v));
 
 const lerp = (a, b, t) =>
   a + (b - a) * t;
@@ -109,17 +102,14 @@ const smooth = t => {
   return t * t * (3 - 2 * t);
 };
 
-const mix = (a, b, t) =>
-  a.map((value, i) => lerp(value, b[i], t));
-
-const wrapAngle = angle =>
-  Math.atan2(Math.sin(angle), Math.cos(angle));
+const wrapAngle = a =>
+  Math.atan2(Math.sin(a), Math.cos(a));
 
 const distance = (a, b) =>
   Math.hypot(a.x - b.x, a.y - b.y);
 
 /* =========================================
-   DOM
+   DOM UND THREE.JS
 ========================================= */
 
 const container = $("globe");
@@ -136,26 +126,12 @@ const defaultZoom = mobile
   ? CONFIG.mobileZoom
   : CONFIG.desktopZoom;
 
-/*
-  Alte, separat schwebende Sensorfenster
-  entfernen. Es wird keine neue HTML-Box
-  für die Sensoraktivierung erstellt.
-*/
-
-function removeOldSensorBoxes() {
-  for (const id of [
-    "camou-motion-control",
-    "compass-permission"
-  ]) {
-    document.getElementById(id)?.remove();
-  }
+for (const id of [
+  "camou-motion-control",
+  "compass-permission"
+]) {
+  document.getElementById(id)?.remove();
 }
-
-removeOldSensorBoxes();
-
-/* =========================================
-   THREE.JS
-========================================= */
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color("#101411");
@@ -191,43 +167,28 @@ renderer.toneMappingExposure = 1.1;
 
 container.appendChild(renderer.domElement);
 
-/* =========================================
-   LICHT
-========================================= */
-
-scene.add(
-  new THREE.AmbientLight(0xddebd8, 1.15)
-);
+scene.add(new THREE.AmbientLight(0xddebd8, 1.15));
 
 const light = new THREE.DirectionalLight(
-  0xe3f0dc,
-  2.1
+  0xe3f0dc, 2.1
 );
 
 light.position.set(-3, 4, 5);
 scene.add(light);
 
 const rim = new THREE.PointLight(
-  0x9bb99a,
-  24,
-  15
+  0x9bb99a, 24, 15
 );
 
 rim.position.set(4, -1, -3);
 scene.add(rim);
-
-/* =========================================
-   KUGEL
-========================================= */
 
 const globeGroup = new THREE.Group();
 scene.add(globeGroup);
 
 const globe = new THREE.Mesh(
   new THREE.SphereGeometry(
-    CONFIG.radius,
-    160,
-    112
+    CONFIG.radius, 160, 112
   ),
   new THREE.MeshStandardMaterial({
     color: 0xffffff,
@@ -240,9 +201,7 @@ globeGroup.add(globe);
 
 const atmosphere = new THREE.Mesh(
   new THREE.SphereGeometry(
-    CONFIG.radius * 1.012,
-    96,
-    64
+    CONFIG.radius * 1.012, 96, 64
   ),
   new THREE.MeshBasicMaterial({
     color: 0xa9bd9f,
@@ -255,13 +214,90 @@ const atmosphere = new THREE.Mesh(
 globeGroup.add(atmosphere);
 
 /* =========================================
+   FREIE POSITIONIERUNG AUF DER KUGEL
+========================================= */
+
+const MAP_W = 4096;
+const MAP_H = 2048;
+const RAD = Math.PI / 180;
+
+const PHOTO_W = 440;
+const PHOTO_H = 320;
+const PHOTO_Y = 136;
+const COMPASS_Y = 115;
+
+/*
+  lon: Längengrad
+  lat: Breitengrad
+  tilt: Neigung der gesamten Komposition
+  photoTilt: zusätzliche Neigung des Bildes
+  imageX: horizontale Bildverschiebung
+  textX: horizontale Textverschiebung
+*/
+
+const PLACES = [
+  {
+    lon: 0,
+    lat: 4,
+    tilt: -7,
+    photoTilt: 6,
+    imageX: 38,
+    textX: -32
+  },
+  {
+    lon: 86,
+    lat: -17,
+    tilt: 11,
+    photoTilt: -6,
+    imageX: -35,
+    textX: 36
+  },
+  {
+    lon: -145,
+    lat: 23,
+    tilt: -12,
+    photoTilt: 7,
+    imageX: 32,
+    textX: -28
+  },
+  {
+    lon: 166,
+    lat: -24,
+    tilt: 10,
+    photoTilt: 0,
+    imageX: -14,
+    textX: 30
+  },
+  {
+    lon: -70,
+    lat: 17,
+    tilt: -11,
+    photoTilt: 8,
+    imageX: -30,
+    textX: 34
+  }
+].map(p => {
+  const lon = p.lon * RAD;
+  const lat = p.lat * RAD;
+
+  return {
+    ...p,
+    x: ((0.25 + p.lon / 360 + 1) % 1) * MAP_W,
+    y: (0.5 - p.lat / 180) * MAP_H,
+    tiltR: p.tilt * RAD,
+    photoR: p.photoTilt * RAD,
+    nx: Math.cos(lat) * Math.sin(lon),
+    ny: Math.sin(lat),
+    nz: Math.cos(lat) * Math.cos(lon)
+  };
+});
+
+/* =========================================
    ZUSTAND
 ========================================= */
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
-
-const sectionStep = Math.PI * 2 / 5;
 const pointers = new Map();
 
 let rotationX = 0;
@@ -277,6 +313,7 @@ let lastTime = 0;
 let isDragging = false;
 let menuAnimating = false;
 
+let targetRotationX = 0;
 let targetRotationY = 0;
 let pointerStart = null;
 
@@ -289,15 +326,8 @@ let globeTexture = null;
 let baseTextureCanvas = null;
 let sceneNeedsRender = true;
 
-let echoesImage = null;
-
-/* =========================================
-   VISUALS STATE
-========================================= */
-
 let visualImages = [];
 let visualIndex = 0;
-
 let visualLeverPointer = null;
 let visualLeverMoved = false;
 let visualLeverStartY = 0;
@@ -317,11 +347,6 @@ homeVideo.volume = 1;
 let homeVideoStarted = false;
 let homeVideoPlaying = false;
 let homeVideoStarting = false;
-
-/* =========================================
-   VIDEO-FRAME-OPTIMIERUNG
-========================================= */
-
 let homeVideoFrameRequest = null;
 let lastVideoFallbackPaint = 0;
 
@@ -333,7 +358,6 @@ function startHomeVideoFrameUpdates() {
 
   const onVideoFrame = () => {
     homeVideoFrameRequest = null;
-
     if (!homeVideoPlaying) return;
 
     updateHomeVideoFrame();
@@ -359,9 +383,8 @@ function stopHomeVideoFrameUpdates() {
   homeVideoFrameRequest = null;
 }
 
-
 /* =========================================
-   BILDER LADEN
+   BILDER UND GRAFIKEN
 ========================================= */
 
 function loadImage(src) {
@@ -377,7 +400,6 @@ function loadImage(src) {
       canvas.height = 1024;
 
       const ctx = canvas.getContext("2d");
-
       const gradient = ctx.createLinearGradient(
         0, 0, 1024, 1024
       );
@@ -446,57 +468,12 @@ function playButton(ctx, x, y) {
 
   ctx.fillStyle = "#f0f2eb";
   ctx.fill();
-
   ctx.restore();
 }
 
 /* =========================================
-   NAHTLOSE FARBVERLÄUFE
+   ORGANISCHER HINTERGRUND
 ========================================= */
-
-const COLORS = [
-  [[24,36,28],[32,47,36],[15,25,19]],
-  [[20,33,28],[29,43,37],[13,23,20]],
-  [[27,39,29],[36,49,36],[17,26,19]],
-  [[17,29,23],[26,40,31],[12,22,17]],
-  [[29,39,29],[38,49,36],[19,27,20]]
-];
-
-function sectionColor(position, vertical) {
-  const p = ((position % 5) + 5) % 5;
-
-  const index = Math.floor(p);
-  const fraction = p - index;
-
-  const blend = lerp(
-    fraction,
-    (1 - Math.cos(fraction * Math.PI)) / 2,
-    CONFIG.gradientSoftness
-  );
-
-  const verticalColor = color =>
-    vertical < 0.5
-      ? mix(
-          color[0],
-          color[1],
-          smooth(vertical * 2)
-        )
-      : mix(
-          color[1],
-          color[2],
-          smooth((vertical - 0.5) * 2)
-        );
-
-  return mix(
-    [26, 39, 30],
-    mix(
-      verticalColor(COLORS[index]),
-      verticalColor(COLORS[(index + 1) % 5]),
-      blend
-    ),
-    CONFIG.gradientStrength
-  );
-}
 
 function drawBackground(ctx, width, height) {
   const small = document.createElement("canvas");
@@ -520,10 +497,22 @@ function drawBackground(ctx, width, height) {
         )
       );
 
-      const color = mix(
-        [22, 34, 26],
-        sectionColor((u - 0.25) * 5, v),
-        pole
+      const wave =
+        Math.sin(u * Math.PI * 2 + v * 2.2);
+
+      const glow =
+        Math.cos(u * Math.PI * 4 - v * 3.1);
+
+      const base = [22, 34, 26];
+
+      const target = [
+        26 + wave * 2,
+        39 + glow * 2.5,
+        30 + wave * 1.6
+      ];
+
+      const color = base.map((value, i) =>
+        lerp(value, target[i], pole)
       );
 
       const lighting =
@@ -556,16 +545,12 @@ function drawBackground(ctx, width, height) {
   ctx.imageSmoothingQuality = "high";
 
   ctx.drawImage(
-    small,
-    0,
-    0,
-    width,
-    height
+    small, 0, 0, width, height
   );
 }
 
 /* =========================================
-   ECHOES SOCIAL LINKS
+   ECHOES / KOMPASS / SOCIAL LINKS
 ========================================= */
 
 const SOCIAL = [
@@ -593,9 +578,6 @@ const SOCIAL = [
 
 const compassRadius = 132;
 
-const compassCenterY =
-  2048 * (0.475 + 0.19 / 2);
-
 let needleAngle = 0;
 let targetNeedleAngle = 0;
 let fallbackAngle = 0;
@@ -603,10 +585,6 @@ let fallbackAngle = 0;
 let lastGlobeX = 0;
 let lastGlobeY = 0;
 let lastCompassDraw = 0;
-
-/* =========================================
-   HYBRID-SENSOREN
-========================================= */
 
 let motionAngle = 0;
 let motionLastAt = 0;
@@ -620,8 +598,7 @@ let headingLastAt = 0;
 
 let sensorOptIn = false;
 let sensorRequestPending = false;
-
-let sensorStatusText = "AUTOMATISCHE ERKENNUNG";
+let sensorStatusText = "KUGELSTEUERUNG";
 
 const fresh = (timestamp, ms = 2200) =>
   timestamp > 0 &&
@@ -651,7 +628,6 @@ function onOrientation(event) {
   if (Number.isFinite(event.webkitCompassHeading)) {
     sensorHeading = event.webkitCompassHeading;
     headingLastAt = now;
-
   } else if (
     event.absolute === true &&
     Number.isFinite(alpha)
@@ -676,18 +652,15 @@ function onOrientation(event) {
         : 0;
 
     const da = difference(
-      alpha,
-      orientationPrevious.alpha
+      alpha, orientationPrevious.alpha
     );
 
     const db = difference(
-      beta,
-      orientationPrevious.beta
+      beta, orientationPrevious.beta
     );
 
     const dg = difference(
-      gamma,
-      orientationPrevious.gamma
+      gamma, orientationPrevious.gamma
     );
 
     registerMotion(
@@ -695,7 +668,6 @@ function onOrientation(event) {
       db * 0.35 +
       dg * 0.55
     );
-
   } else {
     motionLastAt = now;
   }
@@ -703,14 +675,6 @@ function onOrientation(event) {
   orientationPrevious = current;
   orientationLastAt = now;
 }
-
-/*
-  Verfügbare Sensorereignisse werden
-  automatisch abonniert.
-
-  Es wird hier KEINE Berechtigungsabfrage
-  ausgelöst.
-*/
 
 window.addEventListener(
   "deviceorientation",
@@ -729,9 +693,7 @@ window.addEventListener(
   event => {
     const now = performance.now();
 
-    if (now - orientationLastAt < 450) {
-      return;
-    }
+    if (now - orientationLastAt < 450) return;
 
     const rate = event.rotationRate;
     const acceleration =
@@ -758,7 +720,6 @@ window.addEventListener(
           (Number(rate.gamma) || 0) * 0.55
         ) * Math.PI / 180 * dt
       );
-
     } else if (
       acceleration &&
       Number.isFinite(acceleration.x) &&
@@ -776,19 +737,13 @@ window.addEventListener(
   { passive: true }
 );
 
-
 function sensorMode() {
-  // Sensoren nur bei aktivierter Checkbox verwenden
-  if (!sensorOptIn) {
-    return "KUGELSTEUERUNG";
-  }
+  if (!sensorOptIn) return "KUGELSTEUERUNG";
 
-  // Kompasssensor hat Priorität
   if (fresh(headingLastAt)) {
     return "KOMPASS AKTIV";
   }
 
-  // Alternativ Bewegungssensor
   if (fresh(motionLastAt)) {
     return "BEWEGUNG AKTIV";
   }
@@ -796,22 +751,12 @@ function sensorMode() {
   return "KUGELSTEUERUNG";
 }
 
-
-/* =========================================
-   SENSORAKTIVIERUNG AUF DER KUGEL
-
-   KEIN SEPARATES FENSTER
-========================================= */
-
 const SENSOR_CONTROL = {
-  y: compassCenterY + 207,
-
+  y: COMPASS_Y + 207,
   checkboxX: -109,
   labelX: -85,
-
   hitLeft: -130,
   hitRight: 130,
-
   hitTop: -21,
   hitBottom: 30
 };
@@ -823,8 +768,6 @@ function drawSensorControl(ctx, cx) {
 
   ctx.textBaseline = "middle";
   ctx.textAlign = "left";
-
-  /* Kleine Checkbox */
 
   ctx.lineWidth = 1.5;
   ctx.strokeStyle = "rgba(225,238,220,.7)";
@@ -839,7 +782,6 @@ function drawSensorControl(ctx, cx) {
   if (sensorOptIn) {
     ctx.strokeStyle = "#d9e8d2";
     ctx.lineWidth = 2.5;
-
     ctx.beginPath();
 
     ctx.moveTo(
@@ -860,11 +802,7 @@ function drawSensorControl(ctx, cx) {
     ctx.stroke();
   }
 
-  /* Kleine Beschriftung */
-
-  ctx.font =
-    "500 11px 'DM Mono', monospace";
-
+  ctx.font = "500 11px 'DM Mono', monospace";
   ctx.fillStyle = "#e5eee0";
 
   ctx.fillText(
@@ -873,15 +811,9 @@ function drawSensorControl(ctx, cx) {
     cy
   );
 
-  /* Status unter der Checkbox */
-
-  ctx.font =
-    "9px 'DM Mono', monospace";
-
+  ctx.font = "9px 'DM Mono', monospace";
   ctx.textAlign = "center";
-
-  ctx.fillStyle =
-    "rgba(193,211,188,.82)";
+  ctx.fillStyle = "rgba(193,211,188,.82)";
 
   ctx.fillText(
     sensorStatusText,
@@ -893,28 +825,18 @@ function drawSensorControl(ctx, cx) {
   ctx.restore();
 }
 
-/* =========================================
-   SENSORFREIGABE
-========================================= */
-
 function requestSensorAccess() {
   if (sensorRequestPending) return;
 
   sensorOptIn = !sensorOptIn;
 
-
-if (!sensorOptIn) {
-  // Aktuelle Nadelposition übernehmen
-  fallbackAngle = needleAngle;
-  targetNeedleAngle = needleAngle;
-
-  // Zur Kugelsteuerung zurückkehren
-  sensorStatusText = "KUGELSTEUERUNG";
-
-  refreshEchoesTexture();
-  return;
-}
-
+  if (!sensorOptIn) {
+    fallbackAngle = needleAngle;
+    targetNeedleAngle = needleAngle;
+    sensorStatusText = "KUGELSTEUERUNG";
+    refreshEchoesTexture();
+    return;
+  }
 
   if (!window.isSecureContext) {
     sensorOptIn = false;
@@ -945,7 +867,6 @@ if (!sensorOptIn) {
         DeviceMotionEvent.requestPermission()
       );
     }
-
   } catch (error) {
     sensorOptIn = false;
     sensorStatusText = "FREIGABE NICHT MÖGLICH";
@@ -961,7 +882,6 @@ if (!sensorOptIn) {
 
   sensorRequestPending = true;
   sensorStatusText = "FREIGABE WIRD GEPRÜFT";
-
   refreshEchoesTexture();
 
   Promise.allSettled(requests).then(results => {
@@ -975,7 +895,6 @@ if (!sensorOptIn) {
       )
     ) {
       sensorStatusText = "WARTE AUF SENSORDATEN";
-
     } else {
       sensorOptIn = false;
       sensorStatusText = "FREIGABE NICHT ERTEILT";
@@ -984,10 +903,6 @@ if (!sensorOptIn) {
     refreshEchoesTexture();
   });
 }
-
-/* =========================================
-   SOCIAL ICONS
-========================================= */
 
 function socialIcon(ctx, name, x, y) {
   ctx.save();
@@ -1002,7 +917,6 @@ function socialIcon(ctx, name, x, y) {
   if (name === "SPOTIFY") {
     for (let i = 0; i < 3; i++) {
       ctx.beginPath();
-
       ctx.arc(
         0,
         8 + i * 3,
@@ -1010,17 +924,13 @@ function socialIcon(ctx, name, x, y) {
         Math.PI * 1.18,
         Math.PI * 1.83
       );
-
       ctx.stroke();
     }
-
   } else if (name === "APPLE") {
     ctx.font = "bold 28px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-
     ctx.fillText("♫", 0, 1);
-
   } else if (name === "YOUTUBE") {
     ctx.beginPath();
     ctx.roundRect(-17, -12, 34, 24, 7);
@@ -1032,7 +942,6 @@ function socialIcon(ctx, name, x, y) {
     ctx.lineTo(-4, 7);
     ctx.closePath();
     ctx.fill();
-
   } else if (name === "INSTAGRAM") {
     ctx.beginPath();
     ctx.roundRect(-15, -15, 30, 30, 8);
@@ -1049,10 +958,6 @@ function socialIcon(ctx, name, x, y) {
 
   ctx.restore();
 }
-
-/* =========================================
-   ANALOGER KOMPASS
-========================================= */
 
 function drawCompass(ctx, cx, cy) {
   ctx.save();
@@ -1071,27 +976,19 @@ function drawCompass(ctx, cx, cy) {
   gradient.addColorStop(1, "#050b07");
 
   ctx.fillStyle = gradient;
-
   ctx.beginPath();
   ctx.arc(cx, cy, 174, 0, Math.PI * 2);
   ctx.fill();
-
-  /* Äusserer Ring */
 
   ctx.strokeStyle = "rgba(230,242,224,.7)";
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  /* Innerer Ring */
-
   ctx.strokeStyle = "rgba(230,242,224,.25)";
   ctx.lineWidth = 1;
-
   ctx.beginPath();
   ctx.arc(cx, cy, 163, 0, Math.PI * 2);
   ctx.stroke();
-
-  /* Gradmarkierungen */
 
   for (let i = 0; i < 120; i++) {
     const angle =
@@ -1125,8 +1022,6 @@ function drawCompass(ctx, cx, cy) {
     ctx.stroke();
   }
 
-  /* Dezente Richtungslinien */
-
   ctx.strokeStyle = "rgba(220,237,216,.18)";
   ctx.lineWidth = 1;
 
@@ -1148,14 +1043,11 @@ function drawCompass(ctx, cx, cy) {
     ctx.stroke();
   }
 
-  /* Rot-weisse Nadel */
-
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(needleAngle);
 
   ctx.fillStyle = "#ed4438";
-
   ctx.beginPath();
   ctx.moveTo(0, -112);
   ctx.lineTo(-12, 8);
@@ -1165,7 +1057,6 @@ function drawCompass(ctx, cx, cy) {
   ctx.fill();
 
   ctx.fillStyle = "#e9eee5";
-
   ctx.beginPath();
   ctx.moveTo(0, 112);
   ctx.lineTo(-12, -8);
@@ -1176,19 +1067,14 @@ function drawCompass(ctx, cx, cy) {
 
   ctx.restore();
 
-  /* Feste Social-Icons */
-
   for (const item of SOCIAL) {
     const x =
-      cx +
-      Math.cos(item.angle) * compassRadius;
+      cx + Math.cos(item.angle) * compassRadius;
 
     const y =
-      cy +
-      Math.sin(item.angle) * compassRadius;
+      cy + Math.sin(item.angle) * compassRadius;
 
     ctx.fillStyle = "#142019";
-
     ctx.beginPath();
     ctx.arc(x, y, 27, 0, Math.PI * 2);
     ctx.fill();
@@ -1200,8 +1086,6 @@ function drawCompass(ctx, cx, cy) {
     socialIcon(ctx, item.name, x, y);
   }
 
-  /* Nadelachse */
-
   ctx.fillStyle = "#15231a";
   ctx.strokeStyle = "#e1ebe0";
   ctx.lineWidth = 2;
@@ -1212,7 +1096,6 @@ function drawCompass(ctx, cx, cy) {
   ctx.stroke();
 
   ctx.fillStyle = "#dbe7d6";
-
   ctx.beginPath();
   ctx.arc(cx, cy, 3, 0, Math.PI * 2);
   ctx.fill();
@@ -1221,7 +1104,7 @@ function drawCompass(ctx, cx, cy) {
 }
 
 /* =========================================
-   VISUALS — ANALOGER DIA-BETRACHTER
+   ANALOGER DIA-BETRACHTER
 ========================================= */
 
 function drawVisualViewer(ctx, cx, iy, iw, ih) {
@@ -1240,9 +1123,6 @@ function drawVisualViewer(ctx, cx, iy, iw, ih) {
   const windowH = ih - 26;
 
   ctx.save();
-
-  /* Gehäuseschatten */
-
   ctx.shadowColor = "rgba(0,0,0,.65)";
   ctx.shadowBlur = 28;
   ctx.shadowOffsetY = 13;
@@ -1261,32 +1141,23 @@ function drawVisualViewer(ctx, cx, iy, iw, ih) {
   bodyGradient.addColorStop(1, "#101811");
 
   ctx.fillStyle = bodyGradient;
-
   ctx.beginPath();
+
   ctx.roundRect(
-    bodyX,
-    bodyY,
-    bodyW,
-    bodyH,
-    30
+    bodyX, bodyY, bodyW, bodyH, 30
   );
+
   ctx.fill();
-
   ctx.restore();
-  ctx.save();
 
-  /* Gehäusekanten */
+  ctx.save();
 
   ctx.strokeStyle = "rgba(218,231,207,.65)";
   ctx.lineWidth = 3;
 
   ctx.beginPath();
   ctx.roundRect(
-    bodyX,
-    bodyY,
-    bodyW,
-    bodyH,
-    30
+    bodyX, bodyY, bodyW, bodyH, 30
   );
   ctx.stroke();
 
@@ -1302,8 +1173,6 @@ function drawVisualViewer(ctx, cx, iy, iw, ih) {
     24
   );
   ctx.stroke();
-
-  /* Lichtkante */
 
   const highlight = ctx.createLinearGradient(
     bodyX,
@@ -1325,8 +1194,6 @@ function drawVisualViewer(ctx, cx, iy, iw, ih) {
   ctx.lineTo(bodyX + bodyW - 32, bodyY + 10);
   ctx.stroke();
 
-  /* Schrauben */
-
   const screws = [
     [bodyX + 22, bodyY + 22],
     [bodyX + bodyW - 22, bodyY + 22],
@@ -1336,7 +1203,6 @@ function drawVisualViewer(ctx, cx, iy, iw, ih) {
 
   for (const [sx, sy] of screws) {
     ctx.fillStyle = "#101711";
-
     ctx.beginPath();
     ctx.arc(sx, sy, 6, 0, Math.PI * 2);
     ctx.fill();
@@ -1346,14 +1212,11 @@ function drawVisualViewer(ctx, cx, iy, iw, ih) {
     ctx.stroke();
 
     ctx.strokeStyle = "rgba(0,0,0,.8)";
-
     ctx.beginPath();
     ctx.moveTo(sx - 3, sy + 3);
     ctx.lineTo(sx + 3, sy - 3);
     ctx.stroke();
   }
-
-  /* Sichtfensterrahmen */
 
   const frameGradient = ctx.createLinearGradient(
     windowX,
@@ -1376,13 +1239,12 @@ function drawVisualViewer(ctx, cx, iy, iw, ih) {
     windowH + 26,
     14
   );
+
   ctx.fill();
 
   ctx.strokeStyle = "rgba(210,225,200,.65)";
   ctx.lineWidth = 3;
   ctx.stroke();
-
-  /* Dia-Bild */
 
   ctx.save();
   ctx.beginPath();
@@ -1406,7 +1268,6 @@ function drawVisualViewer(ctx, cx, iy, iw, ih) {
       windowW,
       windowH
     );
-
   } else {
     ctx.fillStyle = "#101811";
     ctx.fillRect(
@@ -1417,8 +1278,6 @@ function drawVisualViewer(ctx, cx, iy, iw, ih) {
     );
   }
 
-  /* Glasreflexion */
-
   const reflection = ctx.createLinearGradient(
     windowX,
     windowY,
@@ -1426,9 +1285,15 @@ function drawVisualViewer(ctx, cx, iy, iw, ih) {
     windowY + windowH
   );
 
-  reflection.addColorStop(0, "rgba(255,255,255,.18)");
-  reflection.addColorStop(0.35, "rgba(255,255,255,.035)");
-  reflection.addColorStop(1, "rgba(255,255,255,0)");
+  reflection.addColorStop(
+    0, "rgba(255,255,255,.18)"
+  );
+  reflection.addColorStop(
+    0.35, "rgba(255,255,255,.035)"
+  );
+  reflection.addColorStop(
+    1, "rgba(255,255,255,0)"
+  );
 
   ctx.fillStyle = reflection;
 
@@ -1441,11 +1306,8 @@ function drawVisualViewer(ctx, cx, iy, iw, ih) {
 
   ctx.restore();
 
-  /* Beschriftung */
-
   ctx.fillStyle = "rgba(224,235,216,.8)";
   ctx.font = "bold 15px 'DM Mono', monospace";
-
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
@@ -1454,8 +1316,6 @@ function drawVisualViewer(ctx, cx, iy, iw, ih) {
     cx,
     bodyY + bodyH - 15
   );
-
-  /* Mechanischer Hebel */
 
   const leverX = cx + iw / 2 + 43;
   const leverTop = iy + 15;
@@ -1477,8 +1337,8 @@ function drawVisualViewer(ctx, cx, iy, iw, ih) {
   railGradient.addColorStop(1, "#101711");
 
   ctx.fillStyle = railGradient;
-
   ctx.beginPath();
+
   ctx.roundRect(
     leverX - 8,
     leverTop,
@@ -1486,13 +1346,11 @@ function drawVisualViewer(ctx, cx, iy, iw, ih) {
     leverBottom - leverTop,
     8
   );
-  ctx.fill();
 
+  ctx.fill();
   ctx.strokeStyle = "rgba(220,232,212,.65)";
   ctx.lineWidth = 1.5;
   ctx.stroke();
-
-  /* Hebelstange */
 
   const rodGradient = ctx.createLinearGradient(
     leverX - 5,
@@ -1514,8 +1372,6 @@ function drawVisualViewer(ctx, cx, iy, iw, ih) {
   ctx.lineTo(leverX, knobY + 38);
   ctx.stroke();
 
-  /* Hebelknauf */
-
   const knobGradient = ctx.createRadialGradient(
     leverX - 8,
     knobY - 8,
@@ -1531,7 +1387,6 @@ function drawVisualViewer(ctx, cx, iy, iw, ih) {
   knobGradient.addColorStop(1, "#111a12");
 
   ctx.fillStyle = knobGradient;
-
   ctx.beginPath();
   ctx.arc(leverX, knobY, 22, 0, Math.PI * 2);
   ctx.fill();
@@ -1540,50 +1395,34 @@ function drawVisualViewer(ctx, cx, iy, iw, ih) {
   ctx.lineWidth = 2;
   ctx.stroke();
 
-/* =========================================
-   PRESS – MARKIERUNG DES SCHALTERS
-========================================= */
+  // Dezente PRESS-Markierung.
+  ctx.save();
 
-// Dezenter salbeigrüner Leuchtring
-ctx.save();
+  ctx.shadowColor = "rgba(190,235,165,.65)";
+  ctx.shadowBlur = 16;
+  ctx.strokeStyle = "#c5e8b6";
+  ctx.lineWidth = 2.5;
 
-ctx.shadowColor = "rgba(190, 235, 165, 0.65)";
-ctx.shadowBlur = 16;
+  ctx.beginPath();
+  ctx.arc(leverX, knobY, 24, 0, Math.PI * 2);
+  ctx.stroke();
 
-ctx.strokeStyle = "#c5e8b6";
-ctx.lineWidth = 2.5;
+  ctx.restore();
+  ctx.save();
 
-ctx.beginPath();
-ctx.arc(
-  leverX,
-  knobY,
-  24,
-  0,
-  Math.PI * 2
-);
-ctx.stroke();
+  ctx.font = "700 15px 'DM Mono', monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#101b12";
 
-ctx.restore();
+  ctx.fillText(
+    "PRESS",
+    leverX,
+    knobY + 1,
+    38
+  );
 
-// PRESS-Beschriftung direkt auf dem Knopf
-ctx.save();
-
-ctx.font = "700 15px 'DM Mono', monospace";
-ctx.textAlign = "center";
-ctx.textBaseline = "middle";
-
-ctx.fillStyle = "#101b12";
-
-ctx.fillText(
-  "PRESS",
-  leverX,
-  knobY + 1,
-  38
-);
-
-ctx.restore();
-
-  /* Pfeil */
+  ctx.restore();
 
   ctx.fillStyle = "rgba(226,237,218,.85)";
   ctx.font = "bold 22px Arial";
@@ -1594,8 +1433,6 @@ ctx.restore();
     leverX,
     leverBottom + 25
   );
-
-  /* Bildnummer */
 
   ctx.fillStyle = "#dce7d5";
   ctx.font = "bold 15px 'DM Mono', monospace";
@@ -1610,10 +1447,6 @@ ctx.restore();
   ctx.restore();
 }
 
-/* =========================================
-   VISUALS BILDWECHSEL
-========================================= */
-
 function advanceVisualSlide() {
   if (!visualImages.length) return;
 
@@ -1624,45 +1457,11 @@ function advanceVisualSlide() {
 }
 
 function refreshVisualsTexture() {
-  if (
-    !globeTexture ||
-    !baseTextureCanvas ||
-    !globeContext
-  ) return;
-
-  const w = 4096;
-  const h = 2048;
-  const pw = w / 5;
-
-  const cx = w * (0.25 + 2 / 5);
-  const x = cx - pw / 2;
-
-  globeContext.save();
-
-  globeContext.beginPath();
-  globeContext.rect(x, 0, pw, h);
-  globeContext.clip();
-
-  globeContext.drawImage(
-    baseTextureCanvas,
-    0,
-    0
-  );
-
-  globeContext.restore();
-
-  drawWrappedPanel(
-    globeContext,
-    2,
-    visualImages[visualIndex]
-  );
-
-  globeTexture.needsUpdate = true;
-sceneNeedsRender = true;
+  refreshIsland(2);
 }
 
 /* =========================================
-   ÖFFNEN-BESCHRIFTUNG IM BILD
+   ÖFFNEN-BESCHRIFTUNG
 ========================================= */
 
 function drawOpenLabel(ctx, cx, ix, iy, iw, ih) {
@@ -1680,13 +1479,11 @@ function drawOpenLabel(ctx, cx, ix, iy, iw, ih) {
   );
 
   shade.addColorStop(
-    0,
-    "rgba(5,12,8,0)"
+    0, "rgba(5,12,8,0)"
   );
 
   shade.addColorStop(
-    1,
-    "rgba(5,12,8,.85)"
+    1, "rgba(5,12,8,.85)"
   );
 
   ctx.fillStyle = shade;
@@ -1700,11 +1497,8 @@ function drawOpenLabel(ctx, cx, ix, iy, iw, ih) {
 
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-
   ctx.fillStyle = "#edf4e9";
-
-  ctx.font =
-    "500 21px 'DM Mono', monospace";
+  ctx.font = "500 21px 'DM Mono', monospace";
 
   ctx.fillText(
     "ÖFFNEN  ↗",
@@ -1717,327 +1511,297 @@ function drawOpenLabel(ctx, cx, ix, iy, iw, ih) {
 }
 
 /* =========================================
-   BEREICHE ZEICHNEN
+   FREI PLATZIERTE BEREICHE
 ========================================= */
 
-function drawPanel(
+function eachIslandInstance(index, callback) {
+  const p = PLACES[index];
+
+  for (const shift of [-MAP_W, 0, MAP_W]) {
+    if (
+      shift !== 0 &&
+      p.x + shift < -460
+    ) continue;
+
+    if (
+      shift !== 0 &&
+      p.x + shift > MAP_W + 460
+    ) continue;
+
+    callback(p.x + shift, p.y, p);
+  }
+}
+
+function islandTransform(ctx, x, y, p) {
+  ctx.translate(x, y);
+  ctx.rotate(p.tiltR);
+}
+
+function paintPhoto(
   ctx,
-  section,
+  index,
   image,
-  cx,
-  pw,
-  h
+  onlyVideo = false
 ) {
-  const x = cx - pw / 2;
+  const p = PLACES[index];
 
   ctx.save();
+  ctx.translate(p.imageX, PHOTO_Y);
+  ctx.rotate(p.photoR);
+
+  if (!onlyVideo) {
+    ctx.fillStyle = "rgba(7,12,9,.92)";
+
+    ctx.fillRect(
+      -PHOTO_W / 2 - 8,
+      -PHOTO_H / 2 - 8,
+      PHOTO_W + 16,
+      PHOTO_H + 16
+    );
+  }
+
+  ctx.save();
+
   ctx.beginPath();
-  ctx.rect(x, 0, pw, h);
+  ctx.rect(
+    -PHOTO_W / 2,
+    -PHOTO_H / 2,
+    PHOTO_W,
+    PHOTO_H
+  );
   ctx.clip();
 
-  const contentW = pw * 0.76;
+  if (
+    index === 0 &&
+    homeVideoStarted &&
+    homeVideo.readyState >= 2
+  ) {
+    cover(
+      ctx,
+      homeVideo,
+      -PHOTO_W / 2,
+      -PHOTO_H / 2,
+      PHOTO_W,
+      PHOTO_H
+    );
 
-  /* CAMOU-Buchstabe */
+    if (homeVideo.paused) {
+      playButton(ctx, 0, 0);
+    }
+  } else if (!onlyVideo) {
+    cover(
+      ctx,
+      image,
+      -PHOTO_W / 2,
+      -PHOTO_H / 2,
+      PHOTO_W,
+      PHOTO_H
+    );
 
+    if (index === 0) {
+      playButton(ctx, 0, 0);
+    }
+  }
+
+  ctx.restore();
+
+  if (!onlyVideo) {
+    if (index === 1 || index === 4) {
+      drawOpenLabel(
+        ctx,
+        0,
+        -PHOTO_W / 2,
+        -PHOTO_H / 2,
+        PHOTO_W,
+        PHOTO_H
+      );
+    }
+
+    ctx.strokeStyle = "rgba(225,237,220,.52)";
+    ctx.lineWidth = 2;
+
+    ctx.strokeRect(
+      -PHOTO_W / 2,
+      -PHOTO_H / 2,
+      PHOTO_W,
+      PHOTO_H
+    );
+  }
+
+  ctx.restore();
+}
+
+function drawPanel(ctx, index, image) {
+  const section = sections[index];
+  const p = PLACES[index];
+  const textX = p.textX;
+
+  ctx.save();
   ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
 
-  ctx.fillStyle = "rgba(235,242,229,.82)";
-  ctx.font = "300 30px Manrope, Arial";
+  // Dezente Linie statt rechteckiger Bereichsgrenze.
+  ctx.strokeStyle = "rgba(207,226,200,.27)";
+  ctx.lineWidth = 1.5;
 
-  ctx.fillText(
-    section.poleLetter,
-    cx,
-    h * 0.020
-  );
+  ctx.beginPath();
+  ctx.moveTo(textX - 105, -351);
+  ctx.lineTo(textX + 105, -351);
+  ctx.stroke();
 
-
-  /* =========================================
-     KATEGORIE – DM MONO
-  ========================================= */
-
-  ctx.textBaseline = "alphabetic";
-  ctx.fillStyle = "rgba(232,239,226,.65)";
-
+  // Kategorie.
+  ctx.fillStyle = "rgba(231,242,225,.65)";
   ctx.font = "500 19px 'DM Mono', monospace";
 
   ctx.fillText(
     section.eyebrow,
-    cx,
-    h * 0.24,
-    contentW
+    textX,
+    -318,
+    610
   );
 
-  /* =========================================
-     TITEL – MANROPE
-  ========================================= */
-
+  // Titel.
   ctx.fillStyle = "#f0f2eb";
-
-  // Einheitliche Schriftgrösse für alle Bereiche
   ctx.font = "300 58px Manrope, Arial";
-
-  const titleY = h * 0.335;
 
   section.title.forEach((line, i) => {
     ctx.fillText(
       line,
-      cx,
-      titleY + i * 76,
-      contentW
+      textX,
+      -247 + i * 68,
+      600
     );
   });
 
-  /* =========================================
-     BESCHREIBUNG – MANROPE
-  ========================================= */
-
-  // Abstand zwischen Überschrift und Beschreibung
-  const bodyStart =
-    titleY +
-    (section.title.length - 1) * 76 +
-    82;
-
-  ctx.fillStyle = "rgba(235,239,230,.86)";
-
-  // Etwas kräftigere und besser lesbare Schrift
+  // Beschreibung.
+  ctx.fillStyle = "rgba(236,242,232,.87)";
   ctx.font = "400 22px Manrope, Arial";
 
-  // Einheitlicher Zeilenabstand
   section.body.forEach((line, i) => {
     ctx.fillText(
       line,
-      cx,
-      bodyStart + i * 40,
-      contentW
+      textX,
+      -180 + i * 36,
+      650
     );
   });
 
-
-
-  /* Zusatzinformationen */
-
-  if (section.extra) {
-    ctx.fillStyle = "#c1d0b7";
-
-    ctx.font =
-      "500 18px 'DM Mono', monospace";
-
-    section.extra.forEach((line, i) => {
-      ctx.fillText(
-        line,
-        cx,
-        bodyStart +
-          section.body.length * 40 +
-          35 +
-          i * 39,
-        contentW
-      );
-    });
-  }
-
-  /* Bildposition */
-
-  const iw = pw * 0.56;
-  const ih = h * 0.19;
-
-  const ix = cx - iw / 2;
-  const iy = h * 0.475;
-
-  if (section.name === "ECHOES") {
-
-    /* Kompass und Sensor auf Kugel */
-
-    drawCompass(
-      ctx,
-      cx,
-      iy + ih / 2
-    );
-
-    drawSensorControl(ctx, cx);
-
-  } else if (section.name === "VISUALS") {
-
-    /* Verkleinerter Dia-Betrachter */
-
-    const scale = CONFIG.visualScale;
-    const centerY = iy + ih / 2;
-
+  if (index === 2) {
+    // Visuals – geneigter mechanischer Betrachter.
     ctx.save();
 
-    ctx.translate(cx, centerY);
-    ctx.scale(scale, scale);
-    ctx.translate(-cx, -centerY);
+    ctx.translate(p.imageX, PHOTO_Y);
+    ctx.rotate(p.photoR);
+    ctx.scale(
+      CONFIG.visualScale,
+      CONFIG.visualScale
+    );
 
     drawVisualViewer(
       ctx,
-      cx,
-      iy,
-      iw,
-      ih
+      0,
+      -PHOTO_H / 2,
+      PHOTO_W,
+      PHOTO_H
     );
 
     ctx.restore();
+  } else if (index === 3) {
+    // Echoes – Kompass.
+    drawCompass(
+      ctx,
+      p.imageX,
+      COMPASS_Y
+    );
 
+    drawSensorControl(
+      ctx,
+      p.imageX
+    );
   } else {
-
-    /* Normale Bildrahmen */
-
-    ctx.fillStyle = "rgba(8,13,10,.9)";
-
-    ctx.fillRect(
-      ix - 8,
-      iy - 8,
-      iw + 16,
-      ih + 16
-    );
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(ix, iy, iw, ih);
-    ctx.clip();
-
-    if (
-      section.name === "HOME" &&
-      homeVideoStarted &&
-      homeVideo.readyState >= 2
-    ) {
-      cover(
-        ctx,
-        homeVideo,
-        ix,
-        iy,
-        iw,
-        ih
-      );
-
-    } else {
-      cover(
-        ctx,
-        image,
-        ix,
-        iy,
-        iw,
-        ih
-      );
-
-      if (section.name === "HOME") {
-        playButton(
-          ctx,
-          cx,
-          iy + ih / 2
-        );
-      }
-    }
-
-    ctx.restore();
-
-    /* Music und Contact */
-
-    if (
-      section.name === "MUSIC" ||
-      section.name === "CONTACT"
-    ) {
-      drawOpenLabel(
-        ctx,
-        cx,
-        ix,
-        iy,
-        iw,
-        ih
-      );
-    }
-
-    ctx.strokeStyle =
-      "rgba(226,235,220,.48)";
-
-    ctx.lineWidth = 2;
-
-    ctx.strokeRect(
-      ix,
-      iy,
-      iw,
-      ih
-    );
+    // Home, Music, Contact.
+    paintPhoto(ctx, index, image);
   }
 
-  /* Untere Linie */
-
-  ctx.strokeStyle = "rgba(226,235,220,.35)";
-  ctx.lineWidth = 2;
-
-  ctx.beginPath();
-
-  ctx.moveTo(
-    cx - contentW / 2,
-    h * 0.88
-  );
-
-  ctx.lineTo(
-    cx + contentW / 2,
-    h * 0.88
-  );
-
-  ctx.stroke();
-
-  /* Seitennummer */
-
-  ctx.fillStyle = "rgba(232,239,226,.62)";
-  ctx.font = "19px 'DM Mono', monospace";
-
-  ctx.textAlign = "center";
+  // Kleine Sektionsnummer.
+  ctx.fillStyle = "rgba(225,235,219,.62)";
+  ctx.font = "500 17px 'DM Mono', monospace";
 
   ctx.fillText(
-    `${String(sections.indexOf(section) + 1).padStart(2, "0")} / 05`,
-    cx,
-    h * 0.92
+    `${String(index + 1).padStart(2, "0")} / 05`,
+    p.imageX + 142,
+    376
   );
 
   ctx.restore();
 }
 
-/* =========================================
-   WRAPPED PANELS
-========================================= */
-
 function drawWrappedPanel(ctx, index, image) {
-  const w = 4096;
-  const h = 2048;
-  const pw = w / 5;
+  eachIslandInstance(
+    index,
+    (x, y, p) => {
+      ctx.save();
+      islandTransform(ctx, x, y, p);
+      drawPanel(ctx, index, image);
+      ctx.restore();
+    }
+  );
+}
 
-  const cx =
-    w * (0.25 + index / 5);
+function refreshIsland(index) {
+  if (
+    !globeTexture ||
+    !globeContext ||
+    !baseTextureCanvas
+  ) return;
 
-  drawPanel(
-    ctx,
-    sections[index],
-    image,
-    cx,
-    pw,
-    h
+  eachIslandInstance(
+    index,
+    (x, y, p) => {
+      globeContext.save();
+
+      islandTransform(
+        globeContext,
+        x,
+        y,
+        p
+      );
+
+      globeContext.beginPath();
+      globeContext.rect(
+        -445, -405, 890, 810
+      );
+      globeContext.clip();
+
+      globeContext.setTransform(
+        1, 0, 0, 1, 0, 0
+      );
+
+      globeContext.drawImage(
+        baseTextureCanvas,
+        0,
+        0
+      );
+
+      globeContext.restore();
+    }
   );
 
-  if (cx - pw / 2 < 0) {
-    drawPanel(
-      ctx,
-      sections[index],
-      image,
-      cx + w,
-      pw,
-      h
-    );
-  }
+  const image = index === 2
+    ? visualImages[visualIndex]
+    : null;
 
-  if (cx + pw / 2 > w) {
-    drawPanel(
-      ctx,
-      sections[index],
-      image,
-      cx - w,
-      pw,
-      h
-    );
-  }
+  drawWrappedPanel(
+    globeContext,
+    index,
+    image
+  );
+
+  globeTexture.needsUpdate = true;
+  sceneNeedsRender = true;
+}
+
+function refreshEchoesTexture() {
+  refreshIsland(3);
 }
 
 /* =========================================
@@ -2045,8 +1809,6 @@ function drawWrappedPanel(ctx, index, image) {
 ========================================= */
 
 async function createGlobeTexture() {
-
-  // Schriftarten parallel zu den Bildern vorbereiten
   const canvasFontsReady = document.fonts?.load
     ? Promise.allSettled([
         document.fonts.load("300 58px Manrope"),
@@ -2056,68 +1818,56 @@ async function createGlobeTexture() {
       ])
     : Promise.resolve();
 
-   const images = await Promise.all(
-    [
-      ASSETS.home,
-      ASSETS.music,
-      ASSETS.visuals,
-      ASSETS.archive,
-      ASSETS.contact
-    ].map(loadImage)
-  );
+  const images = await Promise.all([
+    ASSETS.home,
+    ASSETS.music,
+    ASSETS.visuals,
+    ASSETS.archive,
+    ASSETS.contact
+  ].map(loadImage));
 
   visualImages = await Promise.all(
     ASSETS.visualSlides.map(loadImage)
   );
 
   visualIndex = 0;
-  echoesImage = images[3];
-   
-  // Vor dem Zeichnen sicherstellen, dass die
-  // angeforderten Schriftarten geladen wurden.
   await canvasFontsReady;
 
   globeCanvas = document.createElement("canvas");
-
-  globeCanvas.width = 4096;
-  globeCanvas.height = 2048;
-
+  globeCanvas.width = MAP_W;
+  globeCanvas.height = MAP_H;
   globeContext = globeCanvas.getContext("2d");
 
   drawBackground(
     globeContext,
-    4096,
-    2048
+    MAP_W,
+    MAP_H
   );
 
-  images.forEach((image, index) => {
-    drawWrappedPanel(
-      globeContext,
-      index,
-      index === 2
-        ? visualImages[0]
-        : image
-    );
-  });
+  // Unveränderliche Grundtextur ohne Bilder.
+  baseTextureCanvas = document.createElement("canvas");
 
-  baseTextureCanvas =
-    document.createElement("canvas");
-
-  baseTextureCanvas.width = 4096;
-  baseTextureCanvas.height = 2048;
+  baseTextureCanvas.width = MAP_W;
+  baseTextureCanvas.height = MAP_H;
 
   baseTextureCanvas
     .getContext("2d")
     .drawImage(globeCanvas, 0, 0);
 
-  globeTexture =
-    new THREE.CanvasTexture(globeCanvas);
+  images.forEach((image, index) => {
+    drawWrappedPanel(
+      globeContext,
+      index,
+      index === 2 ? visualImages[0] : image
+    );
+  });
 
-  globeTexture.colorSpace =
-    THREE.SRGBColorSpace;
+  globeTexture = new THREE.CanvasTexture(
+    globeCanvas
+  );
 
-  globeTexture.wrapS =
-    THREE.RepeatWrapping;
+  globeTexture.colorSpace = THREE.SRGBColorSpace;
+  globeTexture.wrapS = THREE.RepeatWrapping;
 
   globeTexture.anisotropy =
     renderer.capabilities.getMaxAnisotropy();
@@ -2129,10 +1879,10 @@ createGlobeTexture()
   .then(texture => {
     globe.material.map = texture;
     globe.material.needsUpdate = true;
-sceneNeedsRender = true;
+    sceneNeedsRender = true;
 
     console.info(
-      "CAMOU: Kugeltextur geladen."
+      "CAMOU: Entdecker-Kugel geladen."
     );
   })
   .catch(error => {
@@ -2143,7 +1893,7 @@ sceneNeedsRender = true;
   });
 
 /* =========================================
-   HOME VIDEO AKTUALISIEREN
+   VIDEO AUF GENEIGTEM BILDRAHMEN
 ========================================= */
 
 function updateHomeVideoFrame() {
@@ -2153,148 +1903,121 @@ function updateHomeVideoFrame() {
     homeVideo.readyState < 2
   ) return;
 
-  const cx = 4096 * 0.25;
-
-  const iw = 4096 / 5 * 0.56;
-  const ih = 2048 * 0.19;
-
-  const ix = cx - iw / 2;
-  const iy = 2048 * 0.475;
-
-  globeContext.save();
-
-  globeContext.beginPath();
-  globeContext.rect(ix, iy, iw, ih);
-  globeContext.clip();
-
-  cover(
-    globeContext,
-    homeVideo,
-    ix,
-    iy,
-    iw,
-    ih
-  );
-
-  globeContext.restore();
-
-  if (homeVideo.paused) {
-    playButton(
-      globeContext,
-      cx,
-      iy + ih / 2
-    );
-  }
-
-  globeTexture.needsUpdate = true;
-sceneNeedsRender = true;
-}
-
-/* =========================================
-   ECHOES TEXTUR AKTUALISIEREN
-========================================= */
-
-function refreshEchoesTexture() {
-  if (
-    !globeTexture ||
-    !baseTextureCanvas ||
-    !echoesImage
-  ) return;
-
-  const w = 4096;
-  const h = 2048;
-  const pw = w / 5;
-
-  const cx =
-    w * (0.25 + 3 / 5);
-
-  const x = cx - pw / 2;
-
-  globeContext.save();
-
-  globeContext.beginPath();
-  globeContext.rect(x, 0, pw, h);
-  globeContext.clip();
-
-  globeContext.drawImage(
-    baseTextureCanvas,
+  eachIslandInstance(
     0,
-    0
-  );
+    (x, y, p) => {
+      globeContext.save();
 
-  globeContext.restore();
+      islandTransform(
+        globeContext,
+        x,
+        y,
+        p
+      );
 
-  drawPanel(
-    globeContext,
-    sections[3],
-    echoesImage,
-    cx,
-    pw,
-    h
+      paintPhoto(
+        globeContext,
+        0,
+        null,
+        true
+      );
+
+      globeContext.restore();
+    }
   );
 
   globeTexture.needsUpdate = true;
-sceneNeedsRender = true;
+  sceneNeedsRender = true;
 }
 
 /* =========================================
-   NAVIGATION
+   NAVIGATION / POSITIONEN
 ========================================= */
 
 function currentIndex() {
-  const n = Math.round(
-    -rotationY / sectionStep
-  );
+  const x =
+    -Math.sin(rotationY) * Math.cos(rotationX);
 
-  return ((n % 5) + 5) % 5;
+  const y = Math.sin(rotationX);
+
+  const z =
+    Math.cos(rotationY) * Math.cos(rotationX);
+
+  let best = 0;
+  let bestDot = -Infinity;
+
+  PLACES.forEach((p, i) => {
+    const dot =
+      x * p.nx +
+      y * p.ny +
+      z * p.nz;
+
+    if (dot > bestDot) {
+      bestDot = dot;
+      best = i;
+    }
+  });
+
+  return best;
 }
 
 let lastIndicatorIndex = -1;
+
 function updateIndicator() {
   const index = currentIndex();
+
   if (index === lastIndicatorIndex) return;
   lastIndicatorIndex = index;
 
-  $("current-section").textContent = sections[index].name;
+  $("current-section").textContent =
+    sections[index].name;
+
   $("section-number").textContent =
     `${String(index + 1).padStart(2, "0")} / 05`;
 
   navButtons.forEach((button, i) => {
-    button.classList.toggle("active", i === index);
+    button.classList.toggle(
+      "active",
+      i === index
+    );
   });
 }
 
 function goToSection(index) {
   const i = ((index % 5) + 5) % 5;
-
-  rotationX = 0;
+  const p = PLACES[i];
 
   velocityX = 0;
   velocityY = 0;
 
   isDragging = false;
-
   pointers.clear();
   pointerStart = null;
 
   stage.classList.remove("dragging");
 
-  let destination = -i * sectionStep;
+  // Breitengrad.
+  targetRotationX = p.lat * RAD;
 
-  while (
-    destination - rotationY > Math.PI
-  ) {
-    destination -= 2 * Math.PI;
+  // Kürzesten Weg zum Längengrad suchen.
+  let yaw = -p.lon * RAD;
+
+  while (yaw - rotationY > Math.PI) {
+    yaw -= Math.PI * 2;
   }
 
-  while (
-    destination - rotationY < -Math.PI
-  ) {
-    destination += 2 * Math.PI;
+  while (yaw - rotationY < -Math.PI) {
+    yaw += Math.PI * 2;
   }
 
-  targetRotationY = destination;
+  targetRotationY = yaw;
+
   menuAnimating = true;
+
+  // Den gewählten Bereich wieder gut lesbar anzeigen.
+  setZoom(defaultZoom);
+
+  sceneNeedsRender = true;
 }
 
 navButtons.forEach(button => {
@@ -2314,7 +2037,7 @@ $("logo")?.addEventListener(
 );
 
 /* =========================================
-   SPOTIFY MODAL
+   SPOTIFY POPUP
 ========================================= */
 
 const spotifyModal = $("spotify-modal");
@@ -2334,7 +2057,6 @@ function openSpotifyModal() {
 
   velocityX = 0;
   velocityY = 0;
-
   isDragging = false;
   menuAnimating = false;
 
@@ -2375,6 +2097,7 @@ spotifyClose?.addEventListener(
   "click",
   event => {
     event.preventDefault();
+    event.stopPropagation();
     closeSpotifyModal();
   }
 );
@@ -2394,7 +2117,7 @@ spotifyModal?.addEventListener(
 );
 
 /* =========================================
-   CONTACT MODAL
+   CONTACT POPUP
 ========================================= */
 
 const CONTACT_SCRIPT_URL =
@@ -2421,7 +2144,6 @@ function openContactModal() {
 
   velocityX = 0;
   velocityY = 0;
-
   isDragging = false;
   menuAnimating = false;
 
@@ -2472,10 +2194,6 @@ contactModal?.addEventListener(
   }
 );
 
-/* =========================================
-   KONTAKTFORMULAR SENDEN
-========================================= */
-
 contactForm?.addEventListener(
   "submit",
   async event => {
@@ -2513,7 +2231,6 @@ contactForm?.addEventListener(
         contactStatus.textContent =
           "Übertragung abgeschlossen. Empfang nicht bestätigt.";
       }
-
     } catch (error) {
       console.error(
         "CAMOU Kontaktformular:",
@@ -2524,7 +2241,6 @@ contactForm?.addEventListener(
         contactStatus.textContent =
           "Übertragung fehlgeschlagen.";
       }
-
     } finally {
       contactSending = false;
 
@@ -2536,7 +2252,7 @@ contactForm?.addEventListener(
 );
 
 /* =========================================
-   KUGEL-RAYCASTING
+   3D KLICKERKENNUNG
 ========================================= */
 
 function texturePoint(event) {
@@ -2549,7 +2265,7 @@ function texturePoint(event) {
 
     -(
       (event.clientY - rect.top) /
-      rect.height * 2 - 1
+        rect.height * 2 - 1
     )
   );
 
@@ -2567,112 +2283,123 @@ function texturePoint(event) {
   if (!hit?.uv) return null;
 
   return {
-    x: hit.uv.x * 4096,
-    y: (1 - hit.uv.y) * 2048
+    x: hit.uv.x * MAP_W,
+    y: (1 - hit.uv.y) * MAP_H
   };
 }
 
-function localX(point, index) {
-  const cx =
-    4096 * (0.25 + index / 5);
+function islandPoint(point, index) {
+  if (!point) return null;
 
-  return (
-    (point.x - cx + 6144) % 4096
-  ) - 2048;
+  const p = PLACES[index];
+
+  let dx = point.x - p.x;
+
+  if (dx > MAP_W / 2) {
+    dx -= MAP_W;
+  }
+
+  if (dx < -MAP_W / 2) {
+    dx += MAP_W;
+  }
+
+  const dy = point.y - p.y;
+
+  const c = Math.cos(p.tiltR);
+  const s = Math.sin(p.tiltR);
+
+  return {
+    x: c * dx + s * dy,
+    y: -s * dx + c * dy
+  };
+}
+
+function photoPoint(point, index) {
+  const local = islandPoint(point, index);
+
+  if (!local) return null;
+
+  const p = PLACES[index];
+
+  const dx = local.x - p.imageX;
+  const dy = local.y - PHOTO_Y;
+
+  const c = Math.cos(p.photoR);
+  const s = Math.sin(p.photoR);
+
+  return {
+    x: c * dx + s * dy,
+    y: -s * dx + c * dy
+  };
 }
 
 function inImage(point, index) {
-  if (!point) return false;
+  const q = photoPoint(point, index);
 
-  return (
-    Math.abs(localX(point, index)) <=
-      4096 / 5 * 0.56 / 2 &&
-
-    point.y >= 2048 * 0.475 &&
-
-    point.y <=
-      2048 * (0.475 + 0.19)
-  );
+  return !!q &&
+    Math.abs(q.x) <= PHOTO_W / 2 &&
+    Math.abs(q.y) <= PHOTO_H / 2;
 }
 
-/* =========================================
-   VISUALS HEBEL-KLICKERKENNUNG
-   ANGEPASST AN 78 % SKALIERUNG
-========================================= */
-
 function isOnVisualLever(point) {
-  if (!point) return false;
+  const q = photoPoint(point, 2);
 
-  const scale = CONFIG.visualScale;
-
-  const centerY =
-    2048 * (0.475 + 0.19 / 2);
+  if (!q) return false;
 
   const dx =
-    localX(point, 2) / scale;
+    q.x / CONFIG.visualScale;
 
-  const py =
-    centerY +
-    (point.y - centerY) / scale;
+  const y =
+    q.y / CONFIG.visualScale;
 
-  const iw = 4096 / 5 * 0.56;
+  const leverX =
+    PHOTO_W / 2 + 43;
 
-  const leverX = iw / 2 + 43;
-  const leverTop = 2048 * 0.475 + 15;
+  const leverTop =
+    -PHOTO_H / 2 + 15;
 
   const leverBottom =
-    2048 * 0.475 +
-    2048 * 0.19 * 0.72;
+    -PHOTO_H / 2 +
+    PHOTO_H * 0.72;
 
   return (
     Math.abs(dx - leverX) < 38 &&
-    py >= leverTop - 28 &&
-    py <= leverBottom + 35
+    y >= leverTop - 28 &&
+    y <= leverBottom + 35
   );
 }
 
-/* =========================================
-   KLICK AUF KUGEL
-========================================= */
-
 function handleGlobeClick(event) {
-  const index = currentIndex();
   const point = texturePoint(event);
 
   if (!point) return;
 
-  /* Music */
-
-  if (
-    index === 1 &&
-    inImage(point, 1)
-  ) {
+  // Spotify.
+  if (inImage(point, 1)) {
     openSpotifyModal();
     return;
   }
 
-  /* Contact */
-
-  if (
-    index === 4 &&
-    inImage(point, 4)
-  ) {
+  // Contact.
+  if (inImage(point, 4)) {
     openContactModal();
     return;
   }
 
-  /* Echoes */
+  // Kompass, Checkbox und Social Links.
+  const echoPoint = islandPoint(point, 3);
 
-  if (index === 3) {
-    const dx = localX(point, 3);
+  if (echoPoint) {
+    const p = PLACES[3];
+
+    const dx =
+      echoPoint.x - p.imageX;
 
     const dy =
-      point.y - compassCenterY;
+      echoPoint.y - COMPASS_Y;
 
     const controlY =
-      point.y - SENSOR_CONTROL.y;
-
-    /* Sensor-Checkbox */
+      echoPoint.y - SENSOR_CONTROL.y;
 
     if (
       dx >= SENSOR_CONTROL.hitLeft &&
@@ -2683,8 +2410,6 @@ function handleGlobeClick(event) {
       requestSensorAccess();
       return;
     }
-
-    /* Social Links */
 
     const link = SOCIAL.find(item => {
       const x =
@@ -2705,60 +2430,51 @@ function handleGlobeClick(event) {
         "_blank",
         "noopener,noreferrer"
       );
-
       return;
     }
   }
 
-  /* Home Video */
-
+  // Home Video.
   if (
-    index !== 0 ||
-    !inImage(point, 0) ||
-    homeVideoStarting
-  ) return;
-
-  if (
-    homeVideoStarted &&
-    !homeVideo.paused
+    inImage(point, 0) &&
+    !homeVideoStarting
   ) {
+    if (
+      homeVideoStarted &&
+      !homeVideo.paused
+    ) {
+      homeVideo.pause();
+      homeVideoPlaying = false;
 
-homeVideo.pause();
-homeVideoPlaying = false;
+      stopHomeVideoFrameUpdates();
+      updateHomeVideoFrame();
+      return;
+    }
 
-stopHomeVideoFrameUpdates();
+    homeVideoStarting = true;
 
-updateHomeVideoFrame();
+    homeVideo.play()
+      .then(() => {
+        homeVideoStarted = true;
+        homeVideoPlaying = true;
+        homeVideoStarting = false;
 
-    return;
+        updateHomeVideoFrame();
+        startHomeVideoFrameUpdates();
+      })
+      .catch(error => {
+        homeVideoStarting = false;
+
+        console.error(
+          "CAMOU Home-Video:",
+          error
+        );
+
+        alert(
+          "Das HOME-Video konnte nicht gestartet werden."
+        );
+      });
   }
-
-  homeVideoStarting = true;
-
-
-homeVideo.play()
-  .then(() => {
-    homeVideoStarted = true;
-    homeVideoPlaying = true;
-    homeVideoStarting = false;
-
-    updateHomeVideoFrame();
-
-    startHomeVideoFrameUpdates();
-  })
-
-    .catch(error => {
-      homeVideoStarting = false;
-
-      console.error(
-        "CAMOU Home-Video:",
-        error
-      );
-
-      alert(
-        "Das HOME-Video konnte nicht gestartet werden."
-      );
-    });
 }
 
 /* =========================================
@@ -2773,7 +2489,7 @@ function setZoom(value) {
   );
 
   camera.position.z = currentZoom;
-sceneNeedsRender = true;
+  sceneNeedsRender = true;
 }
 
 $("zoom-in")?.addEventListener(
@@ -2845,26 +2561,19 @@ stage.addEventListener(
       event.target !== renderer.domElement
     ) return;
 
-    /* Visuals Hebel */
+    const point = texturePoint(event);
 
-    if (currentIndex() === 2) {
-      const point = texturePoint(event);
+    // Visuals Hebel.
+    if (isOnVisualLever(point)) {
+      visualLeverPointer = event.pointerId;
+      visualLeverMoved = false;
+      visualLeverStartY = event.clientY;
 
-      if (isOnVisualLever(point)) {
-        visualLeverPointer = event.pointerId;
-        visualLeverMoved = false;
-
-        visualLeverStartY = event.clientY;
-
-        stage.setPointerCapture(
-          event.pointerId
-        );
-
-        return;
-      }
+      stage.setPointerCapture(
+        event.pointerId
+      );
+      return;
     }
-
-    /* Normale Kugeldrehung */
 
     pointers.set(event.pointerId, {
       x: event.clientX,
@@ -2885,6 +2594,7 @@ stage.addEventListener(
 
       previousX = event.clientX;
       previousY = event.clientY;
+
       lastTime = performance.now();
 
       velocityX = 0;
@@ -2892,9 +2602,7 @@ stage.addEventListener(
       menuAnimating = false;
 
       stage.classList.add("dragging");
-
       $("hint")?.classList.add("hidden");
-
     } else if (pointers.size === 2) {
       isDragging = false;
       pointerStart = null;
@@ -2916,9 +2624,7 @@ stage.addEventListener(
 stage.addEventListener(
   "pointermove",
   event => {
-
-    /* Dia-Hebel */
-
+    // Mechanischer Dia-Hebel.
     if (
       visualLeverPointer === event.pointerId
     ) {
@@ -2936,17 +2642,16 @@ stage.addEventListener(
       return;
     }
 
-    if (
-      !pointers.has(event.pointerId)
-    ) return;
+    if (!pointers.has(event.pointerId)) {
+      return;
+    }
 
     pointers.set(event.pointerId, {
       x: event.clientX,
       y: event.clientY
     });
 
-    /* Pinch Zoom */
-
+    // Pinch Zoom.
     if (pointers.size >= 2) {
       const points = [
         ...pointers.values()
@@ -2983,8 +2688,7 @@ stage.addEventListener(
       event.clientY - previousY;
 
     const factor = Math.min(
-      dt / 16,
-      2
+      dt / 16, 2
     );
 
     const mx =
@@ -3013,9 +2717,7 @@ stage.addEventListener(
 ========================================= */
 
 function releasePointer(event) {
-
-  /* Visuals Hebel */
-
+  // Visuals Hebel.
   if (
     visualLeverPointer === event.pointerId
   ) {
@@ -3028,13 +2730,12 @@ function releasePointer(event) {
 
     visualLeverPointer = null;
     visualLeverMoved = false;
-
     return;
   }
 
-  if (
-    !pointers.has(event.pointerId)
-  ) return;
+  if (!pointers.has(event.pointerId)) {
+    return;
+  }
 
   if (
     event.type === "pointerup" &&
@@ -3057,11 +2758,7 @@ function releasePointer(event) {
 
   if (pointers.size === 0) {
     isDragging = false;
-
-    stage.classList.remove(
-      "dragging"
-    );
-
+    stage.classList.remove("dragging");
   } else if (pointers.size === 1) {
     const point = [
       ...pointers.values()
@@ -3074,7 +2771,6 @@ function releasePointer(event) {
 
     velocityX = 0;
     velocityY = 0;
-
     isDragging = true;
   }
 }
@@ -3101,11 +2797,9 @@ stage.addEventListener(
 window.addEventListener(
   "keydown",
   event => {
-
     if (event.key === "Escape") {
       if (contactOpen) {
         closeContactModal();
-
       } else if (spotifyOpen) {
         closeSpotifyModal();
       }
@@ -3113,10 +2807,7 @@ window.addEventListener(
       return;
     }
 
-    if (
-      spotifyOpen ||
-      contactOpen
-    ) return;
+    if (spotifyOpen || contactOpen) return;
 
     if (
       ["INPUT", "TEXTAREA", "SELECT"].includes(
@@ -3125,15 +2816,11 @@ window.addEventListener(
     ) return;
 
     if (event.key === "ArrowRight") {
-      goToSection(
-        currentIndex() + 1
-      );
+      goToSection(currentIndex() + 1);
     }
 
     if (event.key === "ArrowLeft") {
-      goToSection(
-        currentIndex() - 1
-      );
+      goToSection(currentIndex() - 1);
     }
 
     if (event.key === "ArrowUp") {
@@ -3170,40 +2857,38 @@ let lastShownSensorMode = "";
 function animate(now = 0) {
   requestAnimationFrame(animate);
 
-  /* Kugelrotation */
-
-  if (
-    !isDragging &&
-    menuAnimating
-  ) {
-    const delta =
+  // Automatischer Flug zum gewählten Bereich.
+  if (!isDragging && menuAnimating) {
+    const dy =
       targetRotationY - rotationY;
 
-    rotationY += delta * 0.055;
+    const dx =
+      targetRotationX - rotationX;
+
+    rotationY += dy * 0.075;
+    rotationX += dx * 0.075;
 
     if (
-      Math.abs(delta) < 0.001
+      Math.abs(dy) < 0.0005 &&
+      Math.abs(dx) < 0.0005
     ) {
       rotationY = targetRotationY;
+      rotationX = targetRotationX;
       menuAnimating = false;
     }
-
   } else if (!isDragging) {
+    // Trägheit bei freier Drehung.
     rotationY += velocityY;
     rotationX += velocityX;
 
     velocityY *= CONFIG.friction;
     velocityX *= CONFIG.friction;
 
-    if (
-      Math.abs(velocityY) < 0.00004
-    ) {
+    if (Math.abs(velocityY) < 0.00004) {
       velocityY = 0;
     }
 
-    if (
-      Math.abs(velocityX) < 0.00004
-    ) {
+    if (Math.abs(velocityX) < 0.00004) {
       velocityX = 0;
     }
   }
@@ -3214,37 +2899,28 @@ function animate(now = 0) {
     0
   );
 
-
-/* =========================================
-   HOME VIDEO – FRAME-SYNCHRONISATION
-========================================= */
-
-if (
-  homeVideoPlaying &&
-  typeof homeVideo.requestVideoFrameCallback !== "function" &&
-  now - lastVideoFallbackPaint >= 33
-) {
-  lastVideoFallbackPaint = now;
-
-  updateHomeVideoFrame();
-}
-
-
-  /* Kompass Fallback */
+  // Video nur bei neuen Frames.
+  if (
+    homeVideoPlaying &&
+    typeof homeVideo.requestVideoFrameCallback !== "function" &&
+    now - lastVideoFallbackPaint >= 33
+  ) {
+    lastVideoFallbackPaint = now;
+    updateHomeVideoFrame();
+  }
 
   const deltaX =
     rotationX - lastGlobeX;
 
   const deltaY =
     rotationY - lastGlobeY;
-   
-if (
-  Math.abs(deltaX) > 1e-9 ||
-  Math.abs(deltaY) > 1e-9
-) {
-  sceneNeedsRender = true;
-}
 
+  if (
+    Math.abs(deltaX) > 1e-9 ||
+    Math.abs(deltaY) > 1e-9
+  ) {
+    sceneNeedsRender = true;
+  }
 
   lastGlobeX = rotationX;
   lastGlobeY = rotationY;
@@ -3255,41 +2931,28 @@ if (
     deltaX * 0.35
   );
 
-  /* Sensorpriorität */
-
   const mode = sensorMode();
 
   if (mode === "KOMPASS AKTIV") {
     targetNeedleAngle =
       -sensorHeading * Math.PI / 180;
-
   } else if (mode === "BEWEGUNG AKTIV") {
     targetNeedleAngle = motionAngle;
-
   } else {
     targetNeedleAngle = fallbackAngle;
   }
 
-  /* Statusänderung */
-
-  if (
-    mode !== lastShownSensorMode
-  ) {
+  if (mode !== lastShownSensorMode) {
     lastShownSensorMode = mode;
     sensorStatusText = mode;
-
     refreshEchoesTexture();
   }
-
-  /* Weiche Nadelbewegung */
 
   const needleDelta = wrapAngle(
     targetNeedleAngle - needleAngle
   );
 
-  if (
-    Math.abs(needleDelta) > 0.0005
-  ) {
+  if (Math.abs(needleDelta) > 0.0005) {
     needleAngle = wrapAngle(
       needleAngle +
       needleDelta * 0.12
@@ -3300,21 +2963,19 @@ if (
       now - lastCompassDraw > 32
     ) {
       refreshEchoesTexture();
-
       lastCompassDraw = now;
     }
   }
 
+  // Nur rendern, wenn sich etwas geändert hat.
+  if (sceneNeedsRender) {
+    sceneNeedsRender = false;
 
-if (sceneNeedsRender) {
-  sceneNeedsRender = false;
-
-  renderer.render(
-    scene,
-    camera
-  );
-}
-
+    renderer.render(
+      scene,
+      camera
+    );
+  }
 
   updateIndicator();
 }
@@ -3327,13 +2988,11 @@ requestAnimationFrame(animate);
 
 function resize() {
   const w = Math.max(
-    1,
-    container.clientWidth
+    1, container.clientWidth
   );
 
   const h = Math.max(
-    1,
-    container.clientHeight
+    1, container.clientHeight
   );
 
   camera.aspect = w / h;
@@ -3344,7 +3003,8 @@ function resize() {
   renderer.setPixelRatio(
     Math.min(window.devicePixelRatio, 2)
   );
-   sceneNeedsRender = true;
+
+  sceneNeedsRender = true;
 }
 
 window.addEventListener(
@@ -3355,6 +3015,4 @@ window.addEventListener(
 setZoom(defaultZoom);
 updateIndicator();
 
-/* =========================================
-   ENDE CAMOU SCRIPT
-========================================= */
+/* ENDE CAMOU – EXPLORE GLOBE */
