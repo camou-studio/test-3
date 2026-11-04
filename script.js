@@ -3495,12 +3495,13 @@ drawPanel = function(ctx, index, image) {
   ctx.font = "300 58px Manrope, Arial";
   ctx.fillStyle = "#f0f2eb";
 
-  ctx.fillText(
-    section.title[0],
-    -12,
-    -217,
-    820
-  );
+ctx.fillText(
+  section.title[0],
+  -12,
+  index === 3 ? -262 : -217,
+  820
+);
+
 
   /* Beschreibung */
 
@@ -3526,15 +3527,14 @@ drawPanel = function(ctx, index, image) {
     // HOME, VISUALS und ECHOES:
     // Text oberhalb des Motivs.
 
-    section.body.forEach((line, i) => {
-      ctx.fillText(
-        line,
-        p.textX,
-        -140 + i * 38,
-        750
-      );
-    });
-  }
+section.body.forEach((line, i) => {
+  ctx.fillText(
+    line,
+    p.textX,
+    -140 + i * 38 - (index === 3 ? 45 : 0),
+    750
+  );
+});
 
   /* Visuals */
 
