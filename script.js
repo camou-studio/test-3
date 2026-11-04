@@ -3154,7 +3154,7 @@ const CAMOU_V2_PLACES = [
     textX: -20
   },
   {
-    lon: -105,
+    lon: -15,
     lat: -33,
     tilt: 3,
     photoTilt: -4,
@@ -3162,7 +3162,7 @@ const CAMOU_V2_PLACES = [
     textX: 214
   },
   {
-    lon: 5,
+    lon: -175,
     lat: 34,
     tilt: -4,
     photoTilt: 4,
@@ -3178,7 +3178,7 @@ const CAMOU_V2_PLACES = [
     textX: 12
   },
   {
-    lon: 125,
+    lon: 105,
     lat: 1,
     tilt: -4,
     photoTilt: 5,
