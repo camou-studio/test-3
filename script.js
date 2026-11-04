@@ -327,7 +327,7 @@ let menuAnimating = false;
 ========================================= */
 
 // Grosse Standardansicht
-const CAMOU_FOCUS_ZOOM = mobile ? 7.0 : 6.5;
+const CAMOU_FOCUS_ZOOM = mobile ? 6.8 : 6.5;
 
 // Kugel-Gesamtansicht
 const CAMOU_OVERVIEW_ZOOM = mobile ? 11.4 : 11.6;
@@ -3131,6 +3131,7 @@ updateIndicator();
 const CAMOU_V2_W = 960;
 const CAMOU_V2_H = 760;
 const CAMOU_V2_SCALE = mobile ? 0.00222 : 0.00296;
+const CAMOU_MOBILE_SIDE_SCALE = 0.80;
 
 const CAMOU_V2_CANVASES = [];
 const CAMOU_V2_TEXTURES = [];
@@ -3190,6 +3191,10 @@ for (let i = 0; i < PLACES.length; i++) {
   const p = PLACES[i];
 
   Object.assign(p, CAMOU_V2_PLACES[i]);
+
+// Bilder auf Smartphones mittiger platzieren
+if (mobile && i === 1) p.imageX = -50;
+if (mobile && i === 4) p.imageX = 50;
 
   const lon = p.lon * RAD;
   const lat = p.lat * RAD;
@@ -3365,8 +3370,16 @@ paintPhoto = function(ctx, index, image) {
 
   ctx.save();
 
-  ctx.translate(p.imageX, 112);
-  ctx.rotate(p.photoR);
+ctx.translate(p.imageX, 112);
+
+if (mobile && (index === 1 || index === 4)) {
+  ctx.scale(
+    CAMOU_MOBILE_SIDE_SCALE,
+    CAMOU_MOBILE_SIDE_SCALE
+  );
+}
+
+ctx.rotate(p.photoR);
 
   ctx.fillStyle = "rgba(7,12,9,.92)";
 
@@ -3502,7 +3515,6 @@ ctx.fillText(
   820
 );
 
-
   /* Beschreibung */
 
   ctx.font = "400 22px Manrope, Arial";
@@ -3510,10 +3522,44 @@ ctx.fillText(
   ctx.fillStyle =
     "rgba(236,242,232,.88)";
 
-  if (side) {
-    // MUSIC und CONTACT:
-    // Text rechts neben dem Bild.
+if (side) {
 
+  if (mobile) {
+
+    // MUSIC: Text hochkant rechts vom Bild
+    // CONTACT: Text hochkant links vom Bild
+    const isMusic = index === 1;
+
+    ctx.save();
+
+    ctx.translate(
+      isMusic ? 204 : -185,
+      112
+    );
+
+    ctx.rotate(
+      isMusic ? Math.PI / 2 : -Math.PI / 2
+    );
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    section.body.forEach((line, i) => {
+      ctx.fillText(
+        line,
+        0,
+        isMusic
+          ? -40 + i * 35
+          : -18 + i * 38,
+        300
+      );
+    });
+
+    ctx.restore();
+
+  } else {
+
+    // Desktop: bisherige horizontale Darstellung
     section.body.forEach((line, i) => {
       ctx.fillText(
         line,
@@ -3522,6 +3568,8 @@ ctx.fillText(
         382
       );
     });
+
+  }
 
   } else {
     // HOME, VISUALS und ECHOES:
@@ -3717,9 +3765,16 @@ photoPoint = function(point, index) {
   const c = Math.cos(p.photoR);
   const s = Math.sin(p.photoR);
 
+  // Skalierung der Bilder auf Smartphones
+  const scale =
+    mobile && (index === 1 || index === 4)
+      ? CAMOU_MOBILE_SIDE_SCALE
+      : 1;
+
+  // Klickposition auf die Bildgrösse umrechnen
   return {
-    x: c * dx + s * dy,
-    y: -s * dx + c * dy
+    x: (c * dx + s * dy) / scale,
+    y: (-s * dx + c * dy) / scale
   };
 };
 
