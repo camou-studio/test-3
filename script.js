@@ -1,4 +1,3 @@
-
 import * as THREE from "three";
 
 /* CAMOU – EXPLORE GLOBE
@@ -183,6 +182,8 @@ const rim = new THREE.PointLight(
 rim.position.set(4, -1, -3);
 scene.add(rim);
 
+// Die erprobte Szenenstruktur bleibt unveraendert.
+// Den Roll-Ausgleich uebernimmt die Kamera, nicht eine zusaetzliche Kugelgruppe.
 const globeGroup = new THREE.Group();
 scene.add(globeGroup);
 
@@ -220,6 +221,11 @@ globeGroup.add(atmosphere);
 const MAP_W = 4096;
 const MAP_H = 2048;
 const RAD = Math.PI / 180;
+
+// Neigung der gesamten Komposition um ihre eigene Kugelmitte.
+// HOME, MUSIC, VISUALS, ECHOES, CONTACT.
+// Negativ = rechts / im Uhrzeigersinn.
+const CAMOU_PANEL_ROLL_DEG = [0, -90, 180, 0, 20];
 
 const PHOTO_W = 440;
 const PHOTO_H = 320;
@@ -344,6 +350,8 @@ let camouNavStartedAt = 0;
 let camouNavZoomFrom = currentZoom;
 let camouNavRotFromX = rotationX;
 let camouNavRotFromY = rotationY;
+let camouNavRollFrom = 0;
+let camouNavTargetRoll = 0;
 
 let targetRotationX = 0;
 let targetRotationY = 0;
@@ -2045,6 +2053,14 @@ function goToSection(index) {
 
   targetRotationY = yaw;
 
+  // Die neue Ausrichtung des Zielbereichs beim Zoomen ausgleichen.
+  // Roll um die Welt-Z-Achse: Der anvisierte Bereich bleibt frontal
+  // und in der Standardansicht so lesbar wie bisher.
+  let roll = CAMOU_PANEL_ROLL_DEG[i] * RAD;
+  while (roll - camera.rotation.z > Math.PI) roll -= 2 * Math.PI;
+  while (roll - camera.rotation.z < -Math.PI) roll += 2 * Math.PI;
+  camouNavTargetRoll = roll;
+
   // Navigationsflug starten
   camouNavPhase = "out";
   camouNavStartedAt = performance.now();
@@ -2581,7 +2597,6 @@ stage.addEventListener(
   },
   { passive: false }
 );
-
 /* =========================================
    DRAG UND TOUCH
 ========================================= */
@@ -2921,6 +2936,7 @@ function animate(now = 0) {
 
         camouNavRotFromX = rotationX;
         camouNavRotFromY = rotationY;
+        camouNavRollFrom = camera.rotation.z;
 
         camouNavPhase = "turn";
         camouNavStartedAt = now;
@@ -2945,11 +2961,18 @@ function animate(now = 0) {
         t
       );
 
+      camera.rotation.z = lerp(
+        camouNavRollFrom,
+        camouNavTargetRoll,
+        t
+      );
+
       sceneNeedsRender = true;
 
       if (elapsed >= CAMOU_ROTATE_MS) {
         rotationX = targetRotationX;
         rotationY = targetRotationY;
+        camera.rotation.z = camouNavTargetRoll;
 
         camouNavPhase = "in";
         camouNavStartedAt = now;
@@ -3199,7 +3222,7 @@ if (mobile && i === 4) p.imageX = 50;
   const lon = p.lon * RAD;
   const lat = p.lat * RAD;
 
-  p.tiltR = p.tilt * RAD;
+  p.tiltR = (p.tilt + CAMOU_PANEL_ROLL_DEG[i]) * RAD;
   p.photoR = p.photoTilt * RAD;
 
   p.nx = Math.cos(lat) * Math.sin(lon);
@@ -3223,6 +3246,7 @@ function camouV2Geometry(p) {
   const lat = p.lat * RAD;
 
   const normal = new THREE.Vector3(
+
     Math.cos(lat) * Math.sin(lon),
     Math.sin(lat),
     Math.cos(lat) * Math.cos(lon)
@@ -3762,12 +3786,9 @@ photoPoint = function(point, index) {
 
   const p = PLACES[index];
 
-const dx = local.x - p.imageX;
-
-const imageY =
-  mobile && index === 1 ? 150 : 112;
-
-const dy = local.y - imageY;
+  const dx = local.x - p.imageX;
+  const imageY = mobile && index === 1 ? 150 : 112;
+  const dy = local.y - imageY;
 
   const c = Math.cos(p.photoR);
   const s = Math.sin(p.photoR);
@@ -3885,4 +3906,3 @@ setZoom(defaultZoom);
 updateIndicator();
 
 /* ENDE CAMOU – ENTDECKER-KUGEL V2 */
-
