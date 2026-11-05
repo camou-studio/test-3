@@ -2716,38 +2716,35 @@ stage.addEventListener(
       y: event.clientY
     });
 
-    // Pinch Zoom.
-    if (pointers.size >= 2) {
-      const points = [
-        ...pointers.values()
-// Zwei-Finger-Geste: Zoom und Rotation
+    // Zwei-Finger-Geste: Zoom und Rotation
 if (pointers.size >= 2) {
   const points = [...pointers.values()];
 
-  // 1. Zoom wie bisher
-  if (pinchDistance > 0) {
-    const currentDistance = distance(
-      points[0],
-      points[1]
-    );
+  // Abstand zwischen den Fingern
+  const currentDistance = distance(
+    points[0],
+    points[1]
+  );
 
+  // Zoom
+  if (pinchDistance > 0 && currentDistance > 0) {
     setZoom(
-      pinchZoom *
-      (pinchDistance / currentDistance)
+      pinchZoom * (pinchDistance / currentDistance)
     );
   }
 
-  // 2. Winkel zwischen den Fingern berechnen
+  // Winkel zwischen den Fingern
   const currentAngle = Math.atan2(
     points[1].y - points[0].y,
     points[1].x - points[0].x
   );
 
-  // 3. Winkeländerung anwenden
+  // Drehwinkel berechnen
   const angleDelta = wrapAngle(
     currentAngle - pinchAngle
   );
 
+  // Ansicht drehen
   camera.rotation.z =
     pinchRoll - angleDelta;
 
