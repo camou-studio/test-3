@@ -360,6 +360,8 @@ let pointerStart = null;
 
 let pinchDistance = 0;
 let pinchZoom = currentZoom;
+let pinchAngle = 0;
+let pinchRoll = 0;
 
 let globeCanvas = null;
 let globeContext = null;
@@ -2656,21 +2658,31 @@ stage.addEventListener(
 
       stage.classList.add("dragging");
       $("hint")?.classList.add("hidden");
-    } else if (pointers.size === 2) {
-      isDragging = false;
-      pointerStart = null;
+} else if (pointers.size === 2) {
+  isDragging = false;
+  pointerStart = null;
 
-      const points = [
-        ...pointers.values()
-      ];
+  const points = [...pointers.values()];
 
-      pinchDistance = distance(
-        points[0],
-        points[1]
-      );
+  pinchDistance = distance(
+    points[0],
+    points[1]
+  );
 
-      pinchZoom = currentZoom;
-    }
+  pinchZoom = currentZoom;
+
+  // Ausgangswinkel der beiden Finger
+  pinchAngle = Math.atan2(
+    points[1].y - points[0].y,
+    points[1].x - points[0].x
+  );
+
+  // Aktuelle Kameraneigung merken
+  pinchRoll = camera.rotation.z;
+
+  velocityX = 0;
+  velocityY = 0;
+}
   }
 );
 
@@ -2708,22 +2720,41 @@ stage.addEventListener(
     if (pointers.size >= 2) {
       const points = [
         ...pointers.values()
-      ];
+// Zwei-Finger-Geste: Zoom und Rotation
+if (pointers.size >= 2) {
+  const points = [...pointers.values()];
 
-      if (pinchDistance > 0) {
-        setZoom(
-          pinchZoom /
-          (
-            distance(
-              points[0],
-              points[1]
-            ) / pinchDistance
-          )
-        );
-      }
+  // 1. Zoom wie bisher
+  if (pinchDistance > 0) {
+    const currentDistance = distance(
+      points[0],
+      points[1]
+    );
 
-      return;
-    }
+    setZoom(
+      pinchZoom *
+      (pinchDistance / currentDistance)
+    );
+  }
+
+  // 2. Winkel zwischen den Fingern berechnen
+  const currentAngle = Math.atan2(
+    points[1].y - points[0].y,
+    points[1].x - points[0].x
+  );
+
+  // 3. Winkeländerung anwenden
+  const angleDelta = wrapAngle(
+    currentAngle - pinchAngle
+  );
+
+  camera.rotation.z =
+    pinchRoll - angleDelta;
+
+  sceneNeedsRender = true;
+
+  return;
+}
 
     if (!isDragging) return;
 
