@@ -166,7 +166,9 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
 
 container.appendChild(renderer.domElement);
-
+// Touch-Gesten vollständig an CAMOU übergeben
+renderer.domElement.style.touchAction = "none";
+stage.style.touchAction = "none";
 scene.add(new THREE.AmbientLight(0xddebd8, 1.15));
 
 const light = new THREE.DirectionalLight(
@@ -2672,16 +2674,17 @@ stage.addEventListener(
   pinchZoom = currentZoom;
 
   // Ausgangswinkel der beiden Finger
-  pinchAngle = Math.atan2(
-    points[1].y - points[0].y,
-    points[1].x - points[0].x
-  );
+pinchAngle = Math.atan2(
+  points[1].y - points[0].y,
+  points[1].x - points[0].x
+);
 
-  // Aktuelle Kameraneigung merken
-  pinchRoll = camera.rotation.z;
+pinchRoll = camera.rotation.z;
 
-  velocityX = 0;
-  velocityY = 0;
+velocityX = 0;
+velocityY = 0;
+
+menuAnimating = false;
 }
   }
 );
@@ -2716,37 +2719,39 @@ stage.addEventListener(
       y: event.clientY
     });
 
-    // Zwei-Finger-Geste: Zoom und Rotation
+// Zwei-Finger-Geste: Zoom und intuitive Rotation
 if (pointers.size >= 2) {
   const points = [...pointers.values()];
 
-  // Abstand zwischen den Fingern
+  // Abstand der beiden Finger
   const currentDistance = distance(
     points[0],
     points[1]
   );
 
-  // Zoom
+  // Zoom unverändert beibehalten
   if (pinchDistance > 0 && currentDistance > 0) {
     setZoom(
       pinchZoom * (pinchDistance / currentDistance)
     );
   }
 
-  // Winkel zwischen den Fingern
+  // Aktueller Winkel zwischen den Fingern
   const currentAngle = Math.atan2(
     points[1].y - points[0].y,
     points[1].x - points[0].x
   );
 
-  // Drehwinkel berechnen
-  const angleDelta = wrapAngle(
+  // Winkeländerung seit dem letzten Ereignis
+  const delta = wrapAngle(
     currentAngle - pinchAngle
   );
 
-  // Ansicht drehen
-  camera.rotation.z =
-    pinchRoll - angleDelta;
+  // Drehrichtung korrigiert
+  camera.rotation.z += delta;
+
+  // Winkel für nächste Bewegung speichern
+  pinchAngle = currentAngle;
 
   sceneNeedsRender = true;
 
