@@ -1,3 +1,4 @@
+
 import * as THREE from "three";
 
 /* CAMOU – EXPLORE GLOBE
@@ -968,6 +969,8 @@ function socialIcon(ctx, name, x, y) {
       ctx.stroke();
     }
   } else if (name === "APPLE") {
+
+
     ctx.font = "bold 28px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -1938,6 +1941,7 @@ createGlobeTexture()
 ========================================= */
 
 function updateHomeVideoFrame() {
+
   if (
     !homeVideoStarted ||
     !globeTexture ||
@@ -2023,7 +2027,6 @@ function updateIndicator() {
     );
   });
 }
-
 
 function goToSection(index) {
   const i = ((index % 5) + 5) % 5;
@@ -2597,6 +2600,7 @@ stage.addEventListener(
   },
   { passive: false }
 );
+
 /* =========================================
    DRAG UND TOUCH
 ========================================= */
@@ -2906,7 +2910,6 @@ let lastShownSensorMode = "";
 function animate(now = 0) {
   requestAnimationFrame(animate);
 
-
   /* NAVIGATION – DREI PHASEN */
 
   if (!isDragging && menuAnimating) {
@@ -3215,9 +3218,9 @@ for (let i = 0; i < PLACES.length; i++) {
 
   Object.assign(p, CAMOU_V2_PLACES[i]);
 
-// Bilder auf Smartphones mittiger platzieren
-if (mobile && i === 1) p.imageX = -95;
-if (mobile && i === 4) p.imageX = 50;
+  // Bilder auf Smartphones mittiger platzieren
+  if (mobile && i === 1) p.imageX = -95;
+  if (mobile && i === 4) p.imageX = 50;
 
   const lon = p.lon * RAD;
   const lat = p.lat * RAD;
@@ -3246,7 +3249,6 @@ function camouV2Geometry(p) {
   const lat = p.lat * RAD;
 
   const normal = new THREE.Vector3(
-
     Math.cos(lat) * Math.sin(lon),
     Math.sin(lat),
     Math.cos(lat) * Math.cos(lon)
@@ -3389,102 +3391,64 @@ drawWrappedPanel = function(ctx, index, image) {
    BILDER / VIDEOS ZEICHNEN
 ========================================= */
 
-paintPhoto = function(ctx, index, image) {
-  const p = PLACES[index];
+// CONTACT erhält ein eigenes Hochkantformat; alle anderen Bilder bleiben unverändert.
+const CAMOU_CONTACT_W = 260;
+const CAMOU_CONTACT_H = 400;
 
-  ctx.save();
-
-ctx.translate(
-  p.imageX,
-  mobile && index === 1 ? 150 : 112
-);
-
-if (mobile && (index === 1 || index === 4)) {
-  ctx.scale(
-    CAMOU_MOBILE_SIDE_SCALE,
-    CAMOU_MOBILE_SIDE_SCALE
-  );
+// Bild vollständig und unverzerrt in den verfügbaren Rahmen einpassen.
+function camouDrawContained(ctx, image, x, y, w, h) {
+  const iw = image?.naturalWidth || image?.videoWidth || image?.width;
+  const ih = image?.naturalHeight || image?.videoHeight || image?.height;
+  if (!iw || !ih) return;
+  const scale = Math.min(w / iw, h / ih);
+  const dw = iw * scale;
+  const dh = ih * scale;
+  ctx.drawImage(image, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
 
-ctx.rotate(p.photoR);
-
-  ctx.fillStyle = "rgba(7,12,9,.92)";
-
-  ctx.fillRect(
-    -PHOTO_W / 2 - 7,
-    -PHOTO_H / 2 - 7,
-    PHOTO_W + 14,
-    PHOTO_H + 14
-  );
+paintPhoto = function(ctx, index, image) {
+  const p = PLACES[index];
+  const isContact = index === 4;
+  const photoW = isContact ? CAMOU_CONTACT_W : PHOTO_W;
+  const photoH = isContact ? CAMOU_CONTACT_H : PHOTO_H;
+  const photoY = mobile && index === 1 ? 150 : 112;
 
   ctx.save();
+  ctx.translate(p.imageX, photoY);
 
+  if (mobile && (index === 1 || index === 4)) {
+    ctx.scale(CAMOU_MOBILE_SIDE_SCALE, CAMOU_MOBILE_SIDE_SCALE);
+  }
+  ctx.rotate(p.photoR);
+
+  ctx.fillStyle = "rgba(7,12,9,.92)";
+  ctx.fillRect(-photoW / 2 - 7, -photoH / 2 - 7, photoW + 14, photoH + 14);
+
+  ctx.save();
   ctx.beginPath();
-
-  ctx.rect(
-    -PHOTO_W / 2,
-    -PHOTO_H / 2,
-    PHOTO_W,
-    PHOTO_H
-  );
-
+  ctx.rect(-photoW / 2, -photoH / 2, photoW, photoH);
   ctx.clip();
 
-  if (
-    index === 0 &&
-    homeVideoStarted &&
-    homeVideo.readyState >= 2
-  ) {
-    cover(
-      ctx,
-      homeVideo,
-      -PHOTO_W / 2,
-      -PHOTO_H / 2,
-      PHOTO_W,
-      PHOTO_H
-    );
-
-    if (homeVideo.paused) {
-      playButton(ctx, 0, 0);
-    }
+  if (index === 0 && homeVideoStarted && homeVideo.readyState >= 2) {
+    cover(ctx, homeVideo, -photoW / 2, -photoH / 2, photoW, photoH);
+    if (homeVideo.paused) playButton(ctx, 0, 0);
+  } else if (isContact) {
+    // Kein cover(): Dadurch wird auf Desktop und Mobil nichts abgeschnitten.
+    camouDrawContained(ctx, image, -photoW / 2, -photoH / 2, photoW, photoH);
   } else {
-    cover(
-      ctx,
-      image,
-      -PHOTO_W / 2,
-      -PHOTO_H / 2,
-      PHOTO_W,
-      PHOTO_H
-    );
-
-    if (index === 0) {
-      playButton(ctx, 0, 0);
-    }
+    cover(ctx, image, -photoW / 2, -photoH / 2, photoW, photoH);
+    if (index === 0) playButton(ctx, 0, 0);
   }
-
   ctx.restore();
 
-  if (index === 1 || index === 4) {
-    drawOpenLabel(
-      ctx,
-      0,
-      -PHOTO_W / 2,
-      -PHOTO_H / 2,
-      PHOTO_W,
-      PHOTO_H
-    );
+  if (index === 1 || isContact) {
+    // Die Beschriftung bleibt waagrecht lesbar am unteren Bildrand.
+    drawOpenLabel(ctx, 0, -photoW / 2, -photoH / 2, photoW, photoH);
   }
 
   ctx.strokeStyle = "rgba(225,237,220,.52)";
   ctx.lineWidth = 2;
-
-  ctx.strokeRect(
-    -PHOTO_W / 2,
-    -PHOTO_H / 2,
-    PHOTO_W,
-    PHOTO_H
-  );
-
+  ctx.strokeRect(-photoW / 2, -photoH / 2, photoW, photoH);
   ctx.restore();
 };
 
@@ -3862,7 +3826,6 @@ window.addEventListener(
    STANDARD-ZOOM LEICHT VERGRÖSSERN
 ========================================= */
 
-
 const camouV2OriginalZoom = setZoom;
 
 setZoom = function(value) {
@@ -3906,3 +3869,14 @@ setZoom(defaultZoom);
 updateIndicator();
 
 /* ENDE CAMOU – ENTDECKER-KUGEL V2 */
+
+// CONTACT-Klickfläche exakt an das neue Hochkantbild anpassen.
+const camouOriginalInImage = inImage;
+inImage = function(point, index) {
+  if (index !== 4) return camouOriginalInImage(point, index);
+  const q = photoPoint(point, index);
+  return !!q &&
+    Math.abs(q.x) <= CAMOU_CONTACT_W / 2 &&
+    Math.abs(q.y) <= CAMOU_CONTACT_H / 2;
+};
+
